@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+@theme {
+  /* Aqui você pode customizar cores se quiser, mas o Tailwind 4 já traz o Slate por padrão */
+}
+
+/* Estilo global para o fundo e scrollbar */
+@layer base {
+  body {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    @apply bg-slate-950 text-slate-50;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+/* Scrollbar Customizada */
+@layer utilities {
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #0f172a;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #334155;
+    border-radius: 10px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #475569;
+  }
+}
