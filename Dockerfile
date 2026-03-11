@@ -1,20 +1,22 @@
-# Usando uma imagem leve do Node
+# 1. Imagem base
 FROM node:18-alpine
 
-# Criar diretório do app
+# 2. Diretório de trabalho dentro do container
 WORKDIR /usr/src/app
 
-# Instalar dependências
-# Copiamos os arquivos de package primeiro para aproveitar o cache do Docker
+# 3. Copia os arquivos de dependência
+# (Com o Root Directory configurado, o arquivo já está na "raiz" para o Docker)
 COPY package*.json ./
-RUN npm install --production
 
-# Copiar o restante do código
+# 4. Instala apenas o necessário para produção
+RUN npm install --omit=dev
+
+# 5. Copia todo o código do backend
 COPY . .
 
-# Expõe a porta que o Render costuma usar (ou a que você definiu no seu app)
+# 6. Porta da aplicação
 EXPOSE 3000
 
-# Comando para rodar migrations e subir o servidor
-# sh -c permite rodar múltiplos comandos
+# 7. Execução
+# Nota: certifique-se de que o comando 'start' existe no seu package.json
 CMD ["sh", "-c", "npx sequelize-cli db:migrate && npm start"]
