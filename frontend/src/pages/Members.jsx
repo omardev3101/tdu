@@ -41,6 +41,11 @@ export default function Members() {
     setIsModalOpen(true);
   }
 
+  const formatarCPF = (cpf) => {
+  if (!cpf) return 'Sem CPF';
+  return cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+};
+
   async function handleDelete(id) {
     if (window.confirm('Deseja realmente excluir este membro?')) {
       try {
@@ -98,15 +103,17 @@ export default function Members() {
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-slate-600 text-xs uppercase font-bold">
-                          {member.fullName.charAt(0)}
-                        </div>
+{member.full_name ? member.full_name.charAt(0) : '?'}                        </div>
                       )}
                     </div>
                     <div>
                       <div className="font-medium text-slate-200">{member.fullName}</div>
-                      <div className="text-[10px] text-slate-500 font-mono uppercase tracking-tighter">
-                        {member.documentCpf || 'Sem CPF'}
-                      </div>
+                      
+
+
+<div className="text-[10px] text-slate-500 font-mono uppercase tracking-tighter">
+  {formatarCPF(member.document_cpf)}
+</div>
                     </div>
                   </div>
                 </td>

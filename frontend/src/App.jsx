@@ -7,29 +7,33 @@ import Finance from './pages/Finance';
 import Calendar from './pages/Calendar';
 import MemberValidate from './pages/MemberValidate';
 import ExtraRecords from './pages/ExtraRecords';
-import FormSolicitacao from './pages/FormSolicitacao'; // Importado corretamente
+import FormSolicitacao from './pages/FormSolicitacao'; 
 import Solicitacoes from './pages/Solicitacoes';
+import ConfigurarMembro from './pages/ConfigurarMembro';
+import Agreements from './pages/Agreements';
 
-// Função para verificar autenticação em tempo real
+// Função para verificar autenticação
 const PrivateRoute = ({ children }) => {
   const token = localStorage.getItem('@TDU:token');
   return token ? children : <Navigate to="/" />;
 };
 
+
+
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* --- ROTAS PÚBLICAS (Acesso sem Login) --- */}
+        {/* --- ROTAS PÚBLICAS --- */}
         <Route path="/" element={<Login />} />
         
-        {/* Rota para os filhos da casa preencherem o cadastro pelo celular */}
+        {/* Cadastro público para os filhos (Biometria Facial) */}
         <Route path="/solicitacao" element={<FormSolicitacao />} />
         
-        {/* Rota de validação de membro (útil para QR Code ou consulta rápida) */}
+        {/* Validação rápida / QR Code */}
         <Route path="/validar" element={<MemberValidate />} />
 
-        {/* --- ROTAS PRIVADAS (Requerem Login) --- */}
+        {/* --- ROTAS PRIVADAS (Dashboard) --- */}
         <Route 
           path="/dashboard" 
           element={
@@ -38,16 +42,20 @@ function App() {
             </PrivateRoute>
           }
         >
-          {/* Sub-rotas do Dashboard (carregam dentro do Outlet do Dashboard) */}
+          {/* IMPORTANTE: Sub-rotas não devem começar com "/" 
+              Elas são relativas ao pai (/dashboard)
+          */}
           <Route index element={<DashboardHome />} />
           <Route path="members" element={<Members />} />
-          <Route path="solicitacoes" element={<Solicitacoes />} /> {/* Nova Rota */}
+          <Route path="members/:id" element={<ConfigurarMembro />} /> {/* Corrigido: removida a "/" */}
+          <Route path="solicitacoes" element={<Solicitacoes />} />
           <Route path="finance" element={<Finance />} />
           <Route path="calendar" element={<Calendar />} />
           <Route path="records" element={<ExtraRecords />} />
+          <Route path="agreements" element={<Agreements />} />
         </Route>
 
-        {/* Redirecionamento Global para segurança */}
+        {/* Redirecionamento Global */}
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </BrowserRouter>

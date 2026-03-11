@@ -23,9 +23,12 @@ if (require.resolve(indexPath)) {
 const app = express();
 app.use(cors({
   origin: '*', // Importante para testes em rede local
-  credentials: true
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 app.use('/uploads', express.static(path.resolve(__dirname, 'uploads')));
 
 app.use(routes);
@@ -37,7 +40,7 @@ async function run() {
     console.log('✅ Conexão MySQL: OK');
 
     // Aqui o Sequelize tentará criar as tabelas se encontrar os modelos
-    await sequelize.sync({ force: true });
+    await sequelize.sync({ alter: true });
     console.log('✅ Sincronização concluída.');
 
     app.listen(PORT, () => console.log('🚀 TESTE DE SALVAMENTO: 7 CAVEIRAS'));

@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 module.exports = {
-  // LISTAR TODOS
+  // 1. LISTAR TODOS (Admin)
   async index(req, res) {
     try {
       const members = await Member.findAll({ 
@@ -16,86 +16,111 @@ module.exports = {
     }
   },
 
-  // CRIAR NOVO
+  // 2. CRIAR NOVO (Público/Admin - Alistamento)
   async store(req, res) {
     try {
       const photo_url = req.file ? req.file.filename : null;
       const data = { ...req.body };
 
-      // 1. Limpeza e Conversão de tipos (Crucial para DECIMAL e BOOLEAN)
+      // Normalização rigorosa de campos vazios vindos do FormData
       Object.keys(data).forEach(key => {
         if (data[key] === '' || data[key] === 'null' || data[key] === 'undefined') {
           data[key] = null;
         }
       });
 
-      // Conversão explícita para os campos financeiros
-      if (data.customContribution) data.customContribution = parseFloat(data.customContribution);
-      if (data.balanceRetroactive) data.balanceRetroactive = parseFloat(data.balanceRetroactive);
+      // Conversão de Tipos e Tratamento de Booleanos
+      if (data.balance_retroactive) data.balance_retroactive = parseFloat(data.balance_retroactive);
+      if (data.custom_contribution) data.custom_contribution = parseFloat(data.custom_contribution);
       
-      // Ajuste de Booleano
-      data.isVoter = (data.isVoter === 'true' || data.isVoter === true);
+      // Sequelize com underscored precisa receber os nomes exatamente como no JS (camelCase vira snake_case)
+      data.is_voter = (data.is_voter === 'true' || data.is_voter === true);
       data.photo_url = photo_url;
 
+      // Limpeza de CPF/CEP (Remover máscaras se o front enviar)
+      if (data.document_cpf) data.document_cpf = data.document_cpf.replace(/\D/g, '');
+      if (data.address_zip) data.address_zip = data.address_zip.replace(/\D/g, '');
+
       const member = await Member.create(data);
-      return res.json(member);
+      return res.status(201).json(member);
+
     } catch (err) {
       console.error("Erro Store:", err);
+      
+      // Cleanup: Se falhou o DB, removemos a foto salva pelo Multer
       if (req.file) {
         const filePath = path.resolve(__dirname, '..', '..', 'uploads', req.file.filename);
         if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
       }
-      return res.status(400).json({ error: 'Erro ao cadastrar', details: err.message });
+
+      return res.status(400).json({ 
+        error: 'Erro ao realizar cadastro', 
+        details: err.message 
+      });
     }
   },
 
-  // BUSCAR UM ÚNICO
+  // 3. BUSCAR UM ÚNICO
   async show(req, res) {
     try {
-      const member = await Member.findByPk(req.params.id);
+      const { id } = req.params;
+      const member = await Member.findByPk(id);
+      
       if (!member) return res.status(404).json({ error: 'Membro não encontrado' });
+      
       return res.json(member);
     } catch (err) {
-      return res.status(500).json({ error: 'Erro ao buscar membro.' });
+      console.error("Erro Show:", err);
+      return res.status(500).json({ error: 'Erro ao buscar dados.' });
     }
   },
 
-  // ATUALIZAR
+  // 4. APROVAÇÃO E CONFIGURAÇÃO FINANCEIRA
+  async updateConfig(req, res) {
+    try {
+      const { id } = req.params;
+      const { password, custom_contribution, balance_retroactive, role } = req.body;
+      
+      const member = await Member.findByPk(id);
+      if (!member) return res.status(404).json({ error: 'Membro não encontrado' });
+
+      // Atualiza e ativa o membro (Ideal aplicar Bcrypt no password antes do update)
+      await member.update({ 
+        password_hash: password, // Note que no model usamos password_hash
+        custom_contribution: parseFloat(custom_contribution) || 100.00, 
+        balance_retroactive: parseFloat(balance_retroactive) || 0.00,
+        role: role || 'member',
+        status: 'Ativo' 
+      });
+
+      return res.json({ message: "Membro aprovado e ativado com sucesso!" });
+    } catch (err) {
+      console.error("Erro UpdateConfig:", err);
+      return res.status(500).json({ error: "Erro ao aprovar membro." });
+    }
+  },
+
+  // 5. ATUALIZAÇÃO GERAL (Perfil)
   async update(req, res) {
     try {
       const { id } = req.params;
       const member = await Member.findByPk(id);
 
-      if (!member) {
-        return res.status(404).json({ error: 'Membro não encontrado' });
-      }
+      if (!member) return res.status(404).json({ error: 'Membro não encontrado' });
 
       const updateData = { ...req.body };
 
-      // 1. Limpeza de campos de sistema
+      // Segurança: impede alteração manual de ID
       delete updateData.id;
-      delete updateData.createdAt;
-      delete updateData.updatedAt;
-
-      // 2. Normalização de dados vindos do FormData
+      
+      // Normalização
       Object.keys(updateData).forEach(key => {
         if (updateData[key] === '' || updateData[key] === 'null' || updateData[key] === 'undefined') {
           updateData[key] = null;
         }
       });
 
-      // 3. CONVERSÃO EXPLÍCITA (Resolve o erro de não atualizar valor)
-      if (updateData.customContribution !== undefined) {
-        updateData.customContribution = parseFloat(updateData.customContribution) || 0;
-      }
-      if (updateData.balanceRetroactive !== undefined) {
-        updateData.balanceRetroactive = parseFloat(updateData.balanceRetroactive) || 0;
-      }
-      if (updateData.isVoter !== undefined) {
-        updateData.isVoter = (updateData.isVoter === 'true' || updateData.isVoter === true);
-      }
-
-      // 4. Lógica de Troca de Foto
+      // Tratamento de foto na edição
       if (req.file) {
         if (member.photo_url) {
           const oldPath = path.resolve(__dirname, '..', '..', 'uploads', member.photo_url);
@@ -104,26 +129,21 @@ module.exports = {
         updateData.photo_url = req.file.filename;
       }
 
-      // 5. Salva no Banco de Dados
       await member.update(updateData);
-      
       return res.json(member);
-
     } catch (err) {
-      console.error("ERRO NO UPDATE:", err);
-      return res.status(400).json({ 
-        error: 'Erro ao atualizar membro.', 
-        details: err.message 
-      });
+      console.error("Erro Update:", err);
+      return res.status(400).json({ error: 'Erro ao atualizar perfil.' });
     }
   },
 
-  // DELETAR
+  // 6. DELETAR (Exclusão física)
   async delete(req, res) {
     try {
       const member = await Member.findByPk(req.params.id);
       if (!member) return res.status(404).json({ error: 'Membro não encontrado' });
 
+      // Remove arquivo físico
       if (member.photo_url) {
         const photoPath = path.resolve(__dirname, '..', '..', 'uploads', member.photo_url);
         if (fs.existsSync(photoPath)) fs.unlinkSync(photoPath);
@@ -132,7 +152,8 @@ module.exports = {
       await member.destroy();
       return res.status(204).send();
     } catch (err) {
-      return res.status(500).json({ error: 'Erro ao deletar membro.' });
+      console.error("Erro Delete:", err);
+      return res.status(500).json({ error: 'Erro ao remover registro.' });
     }
   }
 };

@@ -2,14 +2,125 @@
 
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    await queryInterface.addColumn('members', 'balance_retroactive', {
-      type: Sequelize.DECIMAL(10, 2),
+    await queryInterface.addColumn('members', 'gender', {
+      type: Sequelize.STRING(50),
       allowNull: true,
-      defaultValue: 0.00,
+      after: 'photo_url'
+    });
+
+    await queryInterface.addColumn('members', 'rg_emissor', {
+      type: Sequelize.STRING(20),
+      allowNull: true,
+      after: 'document_rg'
+    });
+
+    // --- BLOCO DE ENDEREÇO ---
+    await queryInterface.addColumn('members', 'address_zip', {
+      type: Sequelize.STRING(10),
+      allowNull: true,
+      after: 'password_hash'
+    });
+
+    await queryInterface.addColumn('members', 'address_street', {
+      type: Sequelize.STRING(255),
+      allowNull: true,
+      after: 'address_zip'
+    });
+
+    await queryInterface.addColumn('members', 'address_number', {
+      type: Sequelize.STRING(10),
+      allowNull: true,
+      after: 'address_street'
+    });
+
+    await queryInterface.addColumn('members', 'address_complement', {
+      type: Sequelize.STRING(100),
+      allowNull: true,
+      after: 'address_number'
+    });
+
+    await queryInterface.addColumn('members', 'address_district', {
+      type: Sequelize.STRING(100),
+      allowNull: true,
+      after: 'address_complement'
+    });
+
+    await queryInterface.addColumn('members', 'address_city', {
+      type: Sequelize.STRING(100),
+      allowNull: true,
+      defaultValue: 'Diadema',
+      after: 'address_district'
+    });
+
+    await queryInterface.addColumn('members', 'previous_house', {
+      type: Sequelize.STRING,
+      allowNull: true,
+      after: 'godparent'
+    });
+  },
+
+  down: async (queryInterface, Sequelize) => {
+    // Reverter as alterações caso algo dê errado
+    await queryInterface.removeColumn('members', 'gender');
+    await queryInterface.removeColumn('members', 'rg_emissor');
+    await queryInterface.removeColumn('members', 'address_zip');
+    await queryInterface.removeColumn('members', 'address_street');
+    await queryInterface.removeColumn('members', 'address_number');
+    await queryInterface.removeColumn('members', 'address_complement');
+    await queryInterface.removeColumn('members', 'address_district');
+    await queryInterface.removeColumn('members', 'address_city');
+    await queryInterface.removeColumn('members', 'previous_house');
+  }
+};'use strict';
+
+module.exports = {
+  up: async (queryInterface, Sequelize) => {
+    await queryInterface.createTable('agreements', {
+      id: {
+        allowNull: false,
+        autoIncrement: true,
+        primaryKey: true,
+        type: Sequelize.INTEGER
+      },
+      member_id: {
+        type: Sequelize.INTEGER,
+        references: { model: 'members', key: 'id' },
+        onUpdate: 'CASCADE',
+        onDelete: 'CASCADE',
+        allowNull: false
+      },
+      total_value: {
+        type: Sequelize.DECIMAL(10, 2),
+        allowNull: false
+      },
+      installments_count: {
+        type: Sequelize.INTEGER,
+        allowNull: false
+      },
+      status: {
+        type: Sequelize.ENUM('Pendente', 'Ativo', 'Cancelado', 'Finalizado'),
+        defaultValue: 'Pendente'
+      },
+      terms_accepted: {
+        type: Sequelize.BOOLEAN,
+        defaultValue: false
+      },
+      signed_at: {
+        type: Sequelize.DATE,
+        allowNull: true
+      },
+      created_at: {
+        allowNull: false,
+        type: Sequelize.DATE
+      },
+      updated_at: {
+        allowNull: false,
+        type: Sequelize.DATE
+      }
     });
   },
 
   down: async (queryInterface) => {
-    await queryInterface.removeColumn('members', 'balance_retroactive');
+    await queryInterface.dropTable('agreements');
   }
 };

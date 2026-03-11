@@ -9,14 +9,17 @@ const ContributionController = require('./controllers/ContributionController');
 const EventController = require('./controllers/EventController');
 const SystemController = require('./controllers/SystemController');
 const ExtraRecordController = require('./controllers/ExtraRecordController');
+const controller = require('./controllers/MemberController'); // Importa o controlador para as rotas de configuração
+const AgreementController = require('./controllers/AgreementController'); // Importa o controlador de acordos
 
 // Middlewares
 const authMiddleware = require('./middlewares/auth');
 const checkRole = require('./middlewares/checkRole');
 
-// Importar o Model para as rotas que usam Member diretamente (ou use o Controller se preferir)
 const Member = require('./models/Member'); 
-
+console.log('MemberController:', Object.keys(MemberController));
+console.log('ContributionController:', Object.keys(ContributionController));
+console.log('EventController:', EventController ? Object.keys(EventController) : 'Não importado');
 const routes = new Router();
 const upload = multer(multerConfig);
 
@@ -27,47 +30,22 @@ const upload = multer(multerConfig);
 routes.post('/sessions', SessionController.store);
 
 // Rota para preenchimento externo (Filhos da Casa)
-// MOVIA PARA CÁ: Antes do Middleware de Autenticação
-routes.post('/public/solicitacao', async (req, res) => {
-    try {
-        const data = req.body;
-        const novaSolicitacao = await Member.create({
-            full_name: data.full_name,
-            photo_url: data.photo_url,
-            document_cpf: data.document_cpf,
-            document_rg: data.document_rg,
-            phone_whatsapp: data.phone_whatsapp,
-            birth_date: data.birth_date,
-            email: data.email,
-            category: data.category || 'Corrente',
-            baptism_date: data.baptism_date,
-            godparent: data.godparent,
-            is_voter: data.is_voter,
-            is_not_voter: data.is_not_voter,
-            voter_card: data.voter_card,
-            voter_zone: data.voter_zone,
-            voter_section: data.voter_section,
-            political_note: data.political_note,
+// CORRIGIDO: de 'router.post' para 'routes.post'
+// Remova aquela primeira rota 'async (req, res)' inteira e mantenha apenas esta:
 
-            // Segurança
-            status: 'Pendente', 
-            role: 'member',
-            balance_retroactive: 0.00,
-            custom_contribution: 100.00,
-            // Certifique-se de que hashPassword esteja definido ou importe um utilitário de hash
-            password_hash: data.password ? data.password : null 
-        });
-
-        res.status(201).json({ 
-            success: true, 
-            message: 'Cadastro enviado com sucesso! Aguarde a aprovação da diretoria.' 
-        });
-    } catch (error) {
-        console.error("Erro na solicitação:", error);
-        res.status(500).json({ success: false, message: 'Erro ao enviar dados.' });
+routes.post(
+  '/public/solicitacao', 
+  upload.single('photo'), // 1. O Multer processa a foto e preenche o req.body
+  (req, res, next) => {   // 2. Middleware de validação simples
+    if (!req.body.full_name || !req.body.birth_date) {
+      return res.status(400).json({ 
+        error: "Nome e Data de Nascimento são obrigatórios." 
+      });
     }
-});
-
+    next();
+  }, 
+  MemberController.store  // 3. O Controller salva tudo no banco
+);
 // ==========================================
 // --- 2. MIDDLEWARE DE AUTENTICAÇÃO ---
 // ==========================================
@@ -131,6 +109,11 @@ routes.delete('/admin/descartar/:id', checkRole(['DIRETOR', 'DIRETOR DE TECNOLOG
     }
 });
 
+routes.get('/admin/stats', checkRole(['DIRETOR', 'TESOUREIRO']), ContributionController.getStats);
+
+routes.get('/admin/membro/:id', MemberController.show); 
+routes.put('/admin/configurar-membro/:id', MemberController.updateConfig);
+
 routes.get('/members/:id', MemberController.show);
 routes.post('/members', checkRole(['DIRETOR', 'DIRETOR DE TECNOLOGIA']), upload.single('photo'), MemberController.store);
 routes.put('/members/:id', checkRole(['DIRETOR', 'DIRETOR DE TECNOLOGIA']), upload.single('photo'), MemberController.update);
@@ -143,6 +126,9 @@ routes.put('/contributions/:id/pay', checkRole(['DIRETOR', 'TESOUREIRO']), Contr
 // --- ROTA CRÍTICA: Apenas o Diretor Máximo ou Tecnologia ---
 routes.delete('/contributions/reset', checkRole(['DIRETOR', 'DIRETOR DE TECNOLOGIA']), ContributionController.truncate);
 
+routes.get('/agreements',checkRole(['DIRETOR', 'DIRETOR DE TECNOLOGIA', 'TESOUREIRO']), AgreementController.index); // LISTAR ACORDOS
+routes.post('/agreements',checkRole(['DIRETOR', 'DIRETOR DE TECNOLOGIA', 'TESOUREIRO']), AgreementController.create); // CRIAR NOVO
+routes.put('/agreements/:id/accept', checkRole(['DIRETOR', 'DIRETOR DE TECNOLOGIA', 'TESOUREIRO']), AgreementController.acceptTerms); // ACEITAR TERMO
 /**
  * MÓDULO DE EVENTOS / AGENDA
  */

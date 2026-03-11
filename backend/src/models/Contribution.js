@@ -3,12 +3,12 @@ const { sequelize } = require('../config/database');
 const Member = require('./Member');
 
 const Contribution = sequelize.define('Contribution', {
-  memberId: {
-    type: DataTypes.INTEGER,
-    allowNull: false,
-    references: { model: 'members', key: 'id' },
-    field: 'member_id'
-  },
+  member_id: { // ou memberId
+  type: DataTypes.INTEGER,
+  allowNull: false,
+  field: 'member_id', // <--- Isso garante que o SQL use o nome certo
+  references: { model: 'members', key: 'id' }
+},
   description: { type: DataTypes.STRING, allowNull: false },
   value: { type: DataTypes.DECIMAL(10, 2), allowNull: false }, // Valor a pagar acordado
   originalValue: { 
@@ -32,6 +32,17 @@ const Contribution = sequelize.define('Contribution', {
     type: DataTypes.ENUM('Dinheiro', 'Pix', 'Cartão', 'Transferência'),
     field: 'payment_method'
   },
+  agreementId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    field: 'agreement_id',
+    references: { model: 'agreements', key: 'id' }
+  },
+  type: {
+    type: DataTypes.ENUM('Mensalidade', 'Acordo', 'Outros'),
+    defaultValue: 'Mensalidade'
+  },
+  
   notes: { type: DataTypes.TEXT }
 }, {
   tableName: 'contributions',
@@ -41,5 +52,8 @@ const Contribution = sequelize.define('Contribution', {
 
 Member.hasMany(Contribution, { foreignKey: 'memberId', as: 'contributions' });
 Contribution.belongsTo(Member, { foreignKey: 'memberId', as: 'member' });
+const Agreement = require('./Agreement'); // Importe o novo model
+Agreement.hasMany(Contribution, { foreignKey: 'agreementId', as: 'installments' });
+Contribution.belongsTo(Agreement, { foreignKey: 'agreementId', as: 'agreement' });
 
 module.exports = Contribution;

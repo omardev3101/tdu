@@ -1,161 +1,156 @@
 const Contribution = require('../models/Contribution');
 const Member = require('../models/Member');
+const Agreement = require('../models/Agreement'); // Importado para o truncate
+const { sequelize } = require('../config/database');
 const { Op } = require('sequelize');
 
 module.exports = {
-  /**
-   * GERA MENSALIDADES PARA TODOS OS MEMBROS ATIVOS
-   */
+  // 1. GERA MENSALIDADES
   async generateMonthly(req, res) {
     try {
       const { month, year } = req.body;
       const DEFAULT_VALUE = 100.00;
 
-      if (!month || !year) {
-        return res.status(400).json({ error: 'Mês e ano são obrigatórios.' });
-      }
+      if (!month || !year) return res.status(400).json({ error: 'Mês e ano são obrigatórios.' });
 
-      // Descrição formatada (Ex: Mensalidade 03/2026)
       const description = `Mensalidade ${String(month).padStart(2, '0')}/${year}`;
-      
-      // Data de Vencimento padrão: dia 20 do mês/ano selecionado
-      const dueDate = `${year}-${String(month).padStart(2, '0')}-20`;
+      const dueDate = `${year}-${String(month).padStart(2, '0')}-20`; 
 
-      // Busca apenas membros com status 'Ativo'
       const activeMembers = await Member.findAll({ where: { status: 'Ativo' } });
 
-      if (activeMembers.length === 0) {
-        return res.status(404).json({ error: 'Nenhum membro ativo encontrado.' });
-      }
+      if (activeMembers.length === 0) return res.status(404).json({ error: 'Nenhum membro ativo.' });
 
       const contributionsData = [];
 
       for (const member of activeMembers) {
-        // Verifica se já existe mensalidade com essa descrição para o membro
-        // Importante: use o nome do campo conforme definido no seu Model (memberId ou member_id)
         const alreadyExists = await Contribution.findOne({ 
-          where: { 
-            memberId: member.id, 
-            description 
-          } 
+          where: { member_id: member.id, description } 
         });
 
         if (!alreadyExists) {
-          // BLINDAGEM CONTRA NaN:
-          // Se custom_contribution for nulo, undefined ou string vazia, assume o DEFAULT_VALUE
           const rawValue = member.custom_contribution;
           let agreedValue = (rawValue !== null && rawValue !== undefined && rawValue !== '') 
-            ? parseFloat(rawValue) 
-            : DEFAULT_VALUE;
+            ? parseFloat(rawValue) : DEFAULT_VALUE;
 
-          // Validação final: se o parse resultou em NaN por erro de digitação no banco
-          if (isNaN(agreedValue)) {
-            agreedValue = DEFAULT_VALUE;
-          }
+          if (isNaN(agreedValue)) agreedValue = DEFAULT_VALUE;
 
           const residual = DEFAULT_VALUE - agreedValue;
 
           contributionsData.push({
-            memberId: member.id, // Certifique-on de que no Model está 'memberId'
+            member_id: member.id, 
             description,
             value: agreedValue,
             originalValue: DEFAULT_VALUE,
-            residualValue: residual > 0 ? residual : 0,
+            residualValue: residual > 0 ? residual : 0, 
             dueDate,
             status: agreedValue === 0 ? 'Isento' : 'Pendente',
+            type: 'Mensalidade', // Importante para diferenciar de 'Acordo'
             notes: 'Geração automática via sistema'
           });
         }
       }
 
-      if (contributionsData.length === 0) {
-        return res.status(400).json({ 
-          error: 'As mensalidades deste período já foram geradas para todos os membros ativos.' 
-        });
-      }
+      if (contributionsData.length === 0) return res.status(400).json({ error: 'Já gerado para este período.' });
 
-      // Inserção em massa para performance
       await Contribution.bulkCreate(contributionsData);
-
-      return res.json({ 
-        message: `${contributionsData.length} mensalidades geradas com sucesso!` 
-      });
+      return res.json({ message: `${contributionsData.length} mensalidades geradas!` });
 
     } catch (err) {
-      console.error("❌ ERRO NA GERAÇÃO:", err);
-      return res.status(500).json({ 
-        error: 'Erro ao gerar mensalidades.', 
-        details: err.message 
-      });
+      console.error("❌ Erro Geração:", err);
+      return res.status(500).json({ error: 'Erro interno.' });
     }
   },
 
-  /**
-   * LISTA TODAS AS CONTRIBUIÇÕES COM DADOS DO MEMBRO
-   */
+  // 2. DASHBOARD STATS
+  async getStats(req, res) {
+    try {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+
+      const startOfMonth = `${year}-${month}-01 00:00:00`;
+      const endOfMonth = `${year}-${month}-31 23:59:59`;
+
+      const receitaMensal = await Contribution.sum('value', {
+        where: {
+          status: 'Pago',
+          paymentDate: { [Op.between]: [startOfMonth, endOfMonth] }
+        }
+      }) || 0;
+
+      const abertoNoMes = await Contribution.sum('value', {
+        where: {
+          status: 'Pendente',
+          dueDate: { [Op.between]: [startOfMonth, endOfMonth] }
+        }
+      }) || 0;
+
+      return res.json({ 
+        receitaMensal: Number(receitaMensal), 
+        abertoNoMes: Number(abertoNoMes) 
+      });
+    } catch (err) {
+      console.error(err);
+      return res.status(500).json({ error: 'Erro no cálculo' });
+    }
+  },
+
+  // 3. LISTAGEM
   async index(req, res) {
     try {
       const contributions = await Contribution.findAll({
         include: [{ 
           model: Member, 
-          as: 'member', // Deve ser o mesmo 'as' definido no seu arquivo de associacoes/models
+          as: 'member', 
           attributes: ['full_name', 'category', 'custom_contribution'] 
         }],
-        order: [
-          ['dueDate', 'DESC'],
-          [{ model: Member, as: 'member' }, 'full_name', 'ASC']
-        ]
+        order: [['due_date', 'DESC']]
       });
       return res.json(contributions);
     } catch (err) {
-      console.error("❌ ERRO NO INDEX FINANCEIRO:", err);
-      return res.status(500).json({ 
-        error: 'Erro ao carregar dados financeiros.', 
-        details: err.message 
-      });
+      return res.status(500).json({ error: 'Erro ao carregar financeiro.' });
     }
   },
 
-  /**
-   * LIMPA A TABELA PARA TESTES (CUIDADO!)
-   */
-  async truncate(req, res) {
-    try {
-      // destroy({ truncate: true }) limpa a tabela e reseta o AUTO_INCREMENT
-      await Contribution.destroy({ truncate: true, cascade: false });
-      
-      return res.json({ message: 'Base financeira resetada com sucesso!' });
-    } catch (err) {
-      console.error("❌ Erro ao limpar banco:", err);
-      return res.status(500).json({ error: 'Falha ao limpar registros.' });
-    }
-  },
-
-  /**
-   * CONFIRMA PAGAMENTO DE UMA MENSALIDADE
-   */
+  // 4. CONFIRMAR PAGAMENTO
   async pay(req, res) {
     try {
       const { id } = req.params;
-      const { paymentMethod, notes } = req.body;
-
       const contribution = await Contribution.findByPk(id);
-      
-      if (!contribution) {
-        return res.status(404).json({ error: 'Lançamento não encontrado.' });
-      }
+
+      if (!contribution) return res.status(404).json({ error: "Lançamento não encontrado" });
 
       await contribution.update({
         status: 'Pago',
-        paymentDate: new Date(),
-        paymentMethod: paymentMethod || 'Pix',
-        notes: notes || contribution.notes
+        paymentDate: new Date(), 
+        paymentMethod: req.body.paymentMethod || 'Pix'
       });
 
-      return res.json({ message: 'Pagamento confirmado!', data: contribution });
+      return res.json({ message: "Pagamento confirmado!" });
     } catch (err) {
-      console.error("❌ ERRO NO PAGAMENTO:", err);
-      return res.status(400).json({ error: 'Erro ao processar confirmação de pagamento.' });
+      return res.status(400).json({ error: "Erro ao processar pagamento" });
+    }
+  },
+
+  // 5. RESETAR TABELAS (AJUSTADO PARA ACORDOS)
+  async truncate(req, res) {
+    const transaction = await sequelize.transaction();
+    try {
+      // Desativa FKs para evitar erro de restrição ao limpar tabelas relacionadas
+      await sequelize.query('SET FOREIGN_KEY_CHECKS = 0', { transaction });
+
+      // Limpa as duas tabelas
+      await Contribution.destroy({ truncate: true, cascade: true, transaction });
+      await Agreement.destroy({ truncate: true, cascade: true, transaction });
+
+      await sequelize.query('SET FOREIGN_KEY_CHECKS = 1', { transaction });
+      
+      await transaction.commit();
+      return res.json({ message: 'Financeiro e Acordos resetados com sucesso!' });
+    } catch (err) {
+      if (transaction) await transaction.rollback();
+      console.error(err);
+      return res.status(500).json({ error: 'Falha ao limpar registros.' });
     }
   }
 };
