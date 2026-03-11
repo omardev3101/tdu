@@ -1,27 +1,24 @@
 services:
   backend:
-    build: ./backend
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
     container_name: tdu_backend
     ports:
       - "3000:3000"
-    volumes:
-      - ./backend:/usr/src/app
-      - /usr/src/app/node_modules
+    # volumes: - ./backend:/usr/src/app (REMOVER PARA DEPLOY)
     env_file:
       - ./backend/.env
     restart: always
 
   frontend:
-    build: ./frontend
+    build: 
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # Passa a URL da API durante o build
+        - VITE_API_URL=localhost:3000
     container_name: tdu_frontend
     ports:
-      - "5173:5173"
-    volumes:
-      - ./frontend:/usr/src/app
-      - /usr/src/app/node_modules
-    environment:
-      # AQUI ESTÁ O SEGREDO: Use sempre o IP da máquina na rede
-      - VITE_API_URL=http://192.168.1.9:3000
-    depends_on:
-      - backend
+      - "5173:80" # Mapeia a porta 80 interna para 5173 externa
     restart: always
