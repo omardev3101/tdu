@@ -107,59 +107,61 @@ const FormSolicitacao = () => {
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!fotoCapturada) return alert("A biometria facial é obrigatória.");
-    setCarregando(true);
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  if (!fotoCapturada) return alert("A biometria facial é obrigatória.");
+  
+  setCarregando(true);
+  
+  try {
+    const data = new FormData();
     
-    try {
-      const data = new FormData();
-      
-      // TRATAMENTO RIGOROSO DE DADOS PARA O MYSQL
-      Object.keys(formData).forEach(key => {
-        let value = formData[key];
+    // 1. Limpeza e Formatação dos Dados para o MySQL
+    Object.keys(formData).forEach(key => {
+      let value = formData[key];
 
-        // 1. Campos de DATA: Se estiverem vazios, envie NULL (O banco rejeita "")
-        if ((key === 'birth_date' || key === 'baptism_date') && (value === "" || value === null)) {
-          return; // Não adiciona no FormData, o banco assume NULL
-        }
+      // Se for DATA e estiver vazio, envia null (evita erro de string vazia no banco)
+      if ((key === 'birth_date' || key === 'baptism_date') && (value === "" || value === null)) {
+        return; // Pula a inclusão deste campo
+      }
 
-        // 2. Campo IS_VOTER: Converter de true/false para "1" ou "0" (essencial para tinyint)
-        if (key === 'is_voter') {
-          value = value ? "1" : "0";
-        }
+      // Converte booleano para 1 ou 0 (necessário para coluna tinyint do banco)
+      if (key === 'is_voter') {
+        value = value ? "1" : "0";
+      }
 
-        // 3. Limpar máscaras de CPF e CEP (O banco tem limite de caracteres)
-        if (key === 'document_cpf' || key === 'address_zip') {
-          value = value.replace(/\D/g, '');
-        }
+      // Limpa máscaras de CPF e CEP para salvar apenas números
+      if (key === 'document_cpf' || key === 'address_zip') {
+        value = value.replace(/\D/g, '');
+      }
 
-        // 4. Se o valor for vazio e não for obrigatório, melhor não enviar
-        if (value === "" && key !== 'full_name' && key !== 'email') {
-          return;
-        }
+      // Se o valor ainda for string vazia e não for obrigatório, não envia
+      if (value === "" && key !== 'full_name' && key !== 'email') {
+        return;
+      }
 
-        data.append(key, value);
-      });
+      data.append(key, value);
+    });
 
-      // Foto - Usando o nome exato da coluna da tabela: photo_url
-      const res = await fetch(fotoCapturada);
-      const blob = await res.blob();
-      data.append('photo_url', blob, `biometria_${Date.now()}.jpg`);
+    // 2. Foto - Usando o nome da coluna do banco: photo_url
+    const res = await fetch(fotoCapturada);
+    const blob = await res.blob();
+    data.append('photo_url', blob, `biometria_${Date.now()}.jpg`);
 
-      await api.post('/public/solicitacao', data);
-      setEnviado(true);
-      window.scrollTo(0, 0);
-    } catch (error) {
-      console.error("Erro detalhado no envio:", error.response?.data);
-      
-      // Pega a mensagem de erro específica do Sequelize se houver
-      const backendDetail = error.response?.data?.details || "";
-      alert("Erro ao enviar: " + (backendDetail ? "Verifique os campos: " + backendDetail : "Verifique todos os dados."));
-    } finally {
-      setCarregando(false);
-    }
-  };
+    // 3. Envio
+    await api.post('/public/solicitacao', data);
+
+    setEnviado(true);
+    window.scrollTo(0, 0);
+  } catch (error) {
+    // Se der erro de validação, tentamos mostrar qual campo foi
+    console.error("Erro detalhado:", error.response?.data);
+    const backendMsg = error.response?.data?.details || "Erro de validação nos campos";
+    alert("Não foi possível salvar: " + backendMsg);
+  } finally {
+    setCarregando(false);
+  }
+};
 
   if (enviado) {
     return (
@@ -236,12 +238,14 @@ const FormSolicitacao = () => {
           <div className="bg-slate-900/40 border border-slate-800 p-8 rounded-[32px] space-y-4 shadow-xl">
             <h3 className="text-red-500 font-black text-[10px] uppercase tracking-widest flex items-center gap-2"><Church size={14}/> 03. Jornada Espiritual</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <select name="category" className="bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 outline-none text-slate-400" onChange={handleChange}>
-                  <option value="Corrente">Corrente</option>
-                  <option value="Assistência">Assistência</option>
-                  <option value="Ogã">Ogã</option>
-                  <option value="Cambone">Cambone</option>
-              </select>
+              <select name="category" value={formData.category} onChange={handleChange}>
+    <option value="Corrente">Corrente</option>
+    <option value="Assistência">Assistência</option>
+    <option value="Ogã">Ogã</option>
+    <option value="Cambone">Cambone</option>
+    <option value="Pai de Pequeno">Pai de Pequeno</option>
+    <option value="Mãe de Pequena">Mãe de Pequena</option>
+</select>
               <input type="date" name="baptism_date" placeholder="Data Batismo" className="bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 outline-none text-slate-400" onChange={handleChange} />
               <input type="text" name="godparent" placeholder="Padrinho / Madrinha" className="bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 outline-none" onChange={handleChange} />
               {/* Campo Mapeado corretamente para a coluna previous_house */}
