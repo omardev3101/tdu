@@ -16,49 +16,57 @@ module.exports = {
     }
   },
 
-  // 2. CRIAR NOVO (Público/Admin - Alistamento)
-  async store(req, res) {
-    try {
-      const photo_url = req.file ? req.file.filename : null;
-      const data = { ...req.body };
 
-      // Normalização rigorosa de campos vazios vindos do FormData
-      Object.keys(data).forEach(key => {
-        if (data[key] === '' || data[key] === 'null' || data[key] === 'undefined') {
-          data[key] = null;
-        }
-      });
+ // 2. CRIAR NOVO (Público/Admin - Alistamento)
+async store(req, res) {
+  try {
+    // Captura o nome do arquivo gerado pelo Multer
+    const photo_filename = req.file ? req.file.filename : null;
+    const data = { ...req.body };
 
-      // Conversão de Tipos e Tratamento de Booleanos
-      if (data.balance_retroactive) data.balance_retroactive = parseFloat(data.balance_retroactive);
-      if (data.custom_contribution) data.custom_contribution = parseFloat(data.custom_contribution);
-      
-      // Sequelize com underscored precisa receber os nomes exatamente como no JS (camelCase vira snake_case)
-      data.is_voter = (data.is_voter === 'true' || data.is_voter === true);
-      data.photo_url = photo_url;
-
-      // Limpeza de CPF/CEP (Remover máscaras se o front enviar)
-      if (data.document_cpf) data.document_cpf = data.document_cpf.replace(/\D/g, '');
-      if (data.address_zip) data.address_zip = data.address_zip.replace(/\D/g, '');
-
-      const member = await Member.create(data);
-      return res.status(201).json(member);
-
-    } catch (err) {
-      console.error("Erro Store:", err);
-      
-      // Cleanup: Se falhou o DB, removemos a foto salva pelo Multer
-      if (req.file) {
-        const filePath = path.resolve(__dirname, '..', '..', 'uploads', req.file.filename);
-        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    // Normalização de campos vazios (Crucial para campos DATE e ENUM)
+    Object.keys(data).forEach(key => {
+      if (data[key] === '' || data[key] === 'null' || data[key] === 'undefined') {
+        data[key] = null;
       }
+    });
 
-      return res.status(400).json({ 
-        error: 'Erro ao realizar cadastro', 
-        details: err.message 
-      });
+    // 1. Vincula a foto à coluna correta do banco
+    data.photo_url = photo_filename;
+
+    // 2. Tratamento do campo is_voter (MySQL espera 0 ou 1)
+    if (data.is_voter !== undefined) {
+      data.is_voter = (data.is_voter === 'true' || data.is_voter === '1' || data.is_voter === true) ? 1 : 0;
     }
-  },
+
+    // 3. Limpeza de máscaras (CPF e CEP)
+    if (data.document_cpf) data.document_cpf = data.document_cpf.replace(/\D/g, '');
+    if (data.address_zip) data.address_zip = data.address_zip.replace(/\D/g, '');
+
+    // 4. Conversão de valores financeiros
+    if (data.balance_retroactive) data.balance_retroactive = parseFloat(data.balance_retroactive);
+    if (data.custom_contribution) data.custom_contribution = parseFloat(data.custom_contribution);
+
+    // Salva no banco (O Sequelize vai mapear o 'previous_house' automaticamente aqui)
+    const member = await Member.create(data);
+
+    return res.status(201).json(member);
+
+  } catch (err) {
+    console.error("Erro Store:", err);
+    
+    // Cleanup: Se falhou o DB, removemos a foto salva para não entulhar o servidor
+    if (req.file) {
+      const filePath = path.resolve(__dirname, '..', '..', 'uploads', req.file.filename);
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    }
+
+    return res.status(400).json({ 
+      error: 'Erro ao realizar cadastro', 
+      details: err.message 
+    });
+  }
+},
 
   // 3. BUSCAR UM ÚNICO
   async show(req, res) {

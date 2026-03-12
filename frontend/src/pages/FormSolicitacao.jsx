@@ -14,28 +14,29 @@ const FormSolicitacao = () => {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
 
+  // IMPORTANTE: Os nomes das chaves aqui devem ser IGUAIS às colunas do banco
   const [formData, setFormData] = useState({
-    full_name: '', 
-    email: '', 
-    phone_whatsapp: '', 
-    birth_date: '', 
+    full_name: '',
+    email: '',
+    phone_whatsapp: '',
+    birth_date: '',
     gender: 'Não Informado',
-    document_cpf: '', 
-    document_rg: '', 
+    document_cpf: '',
+    document_rg: '',
     rg_emissor: '',
-    address_zip: '', 
-    address_street: '', 
-    address_number: '', 
+    address_zip: '',
+    address_street: '',
+    address_number: '',
     address_complement: '',
-    address_district: '', 
+    address_district: '',
     address_city: 'Diadema',
-    category: 'Corrente', 
-    baptism_date: '', 
-    godparent: '', 
-    previous_house: '', // Este é o campo do terreiro antigo
-    is_voter: false, 
-    voter_card: '', 
-    voter_zone: '', 
+    category: 'Corrente',
+    baptism_date: '',
+    godparent: '',
+    previous_house: '', // Mapeado para "Terreiro Anterior"
+    is_voter: false,
+    voter_card: '',
+    voter_zone: '',
     voter_section: '',
     political_note: ''
   });
@@ -114,33 +115,28 @@ const FormSolicitacao = () => {
     try {
       const data = new FormData();
       
-      // TRATAMENTO DE DADOS PARA EVITAR VALIDATION ERROR NO BANCO
+      // TRATAMENTO PARA EVITAR "VALIDATION ERROR" NO BACKEND
       Object.keys(formData).forEach(key => {
         let value = formData[key];
 
-        // 1. Limpa máscaras de campos numéricos para o banco
-        if (key === 'document_cpf' || key === 'address_zip') {
-            value = value.replace(/\D/g, '');
-        }
-
-        // 2. Trata datas vazias como NULL (o banco não aceita "" em DATE)
+        // Se for data e estiver vazia, envia nulo (O banco não aceita string vazia em DATE)
         if ((key === 'birth_date' || key === 'baptism_date') && value === "") {
-            value = null;
+          value = null;
         }
 
-        // 3. Converte Boolean para 0 ou 1 (TINYINT no MySQL)
+        // Converte booleano para 1 ou 0 (necessário para coluna tinyint do banco)
         if (key === 'is_voter') {
-            value = formData[key] ? "1" : "0";
+          value = value ? "1" : "0";
         }
 
-        if (value !== null && value !== undefined) {
-            data.append(key, value);
+        if (value !== null) {
+          data.append(key, value);
         }
       });
 
-      // Foto - Nomeada como photo_url para casar com o Multer/Banco
-      const res = await fetch(fotoCapturada);
-      const blob = await res.blob();
+      // Foto convertida para arquivo real
+      const blob = await (await fetch(fotoCapturada)).blob();
+      // O nome deve ser 'photo_url' para casar com sua tabela
       data.append('photo_url', blob, `biometria_${Date.now()}.jpg`);
 
       await api.post('/public/solicitacao', data);
@@ -148,7 +144,7 @@ const FormSolicitacao = () => {
       window.scrollTo(0, 0);
     } catch (error) {
       console.error("Erro no envio:", error.response?.data);
-      alert("Erro ao enviar: " + (error.response?.data?.details || error.response?.data?.error || "Verifique os campos e tente novamente."));
+      alert("Erro ao enviar: " + (error.response?.data?.details || error.response?.data?.error || "Erro de conexão"));
     } finally { setCarregando(false); }
   };
 
@@ -166,18 +162,17 @@ const FormSolicitacao = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-200 py-12 px-4 pb-24">
+    <div className="min-h-screen bg-slate-950 text-slate-200 py-12 px-4 pb-24 font-sans">
       <div className="max-w-3xl mx-auto">
-        
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-black text-white uppercase tracking-tighter italic">Solicitação para Corrente - TDU 7 CAVEIRAS</h1>
+          <h1 className="text-4xl font-black text-white uppercase tracking-tighter italic">Alistamento de Corrente - TDU</h1>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-8">
           
           {/* FOTO BIOMÉTRICA */}
           <div className="bg-slate-900/50 border border-slate-800 p-8 rounded-[45px] flex flex-col items-center shadow-2xl relative">
-            <div className="relative w-64 h-80 mb-6 bg-slate-950 rounded-[60px] overflow-hidden border-4 border-slate-800 flex items-center justify-center shadow-inner">
+            <div className="relative w-64 h-80 mb-6 bg-slate-950 rounded-[60px] overflow-hidden border-4 border-slate-800 flex items-center justify-center">
                 {cameraAtiva && (
                   <>
                     <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover scale-x-[-1]" />
@@ -224,21 +219,20 @@ const FormSolicitacao = () => {
             </div>
           </div>
 
-          {/* 03. VIDA ESPIRITUAL (RELIGIOSO) */}
+          {/* 03. VIDA ESPIRITUAL */}
           <div className="bg-slate-900/40 border border-slate-800 p-8 rounded-[32px] space-y-4 shadow-xl">
             <h3 className="text-red-500 font-black text-[10px] uppercase tracking-widest flex items-center gap-2"><Church size={14}/> 03. Jornada Espiritual</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <select name="category" value={formData.category} className="bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 outline-none text-slate-400" onChange={handleChange}>
+              <select name="category" className="bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 outline-none text-slate-400" onChange={handleChange}>
                   <option value="Corrente">Corrente</option>
                   <option value="Assistência">Assistência</option>
                   <option value="Ogã">Ogã</option>
                   <option value="Cambone">Cambone</option>
-                  <option value="Pai de Pequeno">Pai de Pequeno</option>
-                  <option value="Mãe de Pequena">Mãe de Pequena</option>
               </select>
               <input type="date" name="baptism_date" placeholder="Data Batismo" className="bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 outline-none text-slate-400" onChange={handleChange} />
-              <input type="text" name="godparent" placeholder="Padrinho / Madrinha" className="bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 outline-none col-span-1" onChange={handleChange} />
-              <input type="text" name="previous_house" placeholder="Terreiro Anterior (opcional)" className="bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 outline-none col-span-1" onChange={handleChange} />
+              <input type="text" name="godparent" placeholder="Padrinho / Madrinha" className="bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 outline-none" onChange={handleChange} />
+              {/* Campo Mapeado corretamente para a coluna previous_house */}
+              <input type="text" name="previous_house" placeholder="Terreiro Anterior (se houver)" className="bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 outline-none" onChange={handleChange} />
             </div>
           </div>
 
@@ -251,15 +245,15 @@ const FormSolicitacao = () => {
             </label>
             {formData.is_voter && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-in slide-in-from-top-2 duration-300">
-                <input type="text" name="voter_card" placeholder="Título" className="bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 outline-none focus:border-red-600" onChange={handleChange} />
-                <input type="text" name="voter_zone" placeholder="Zona" className="bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 outline-none focus:border-red-600" onChange={handleChange} />
-                <input type="text" name="voter_section" placeholder="Seção" className="bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 outline-none focus:border-red-600" onChange={handleChange} />
+                <input type="text" name="voter_card" placeholder="Título" className="bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 outline-none" onChange={handleChange} />
+                <input type="text" name="voter_zone" placeholder="Zona" className="bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 outline-none" onChange={handleChange} />
+                <input type="text" name="voter_section" placeholder="Seção" className="bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 outline-none" onChange={handleChange} />
               </div>
             )}
           </div>
 
           <button type="submit" disabled={carregando} className="w-full bg-red-600 hover:bg-red-700 text-white font-black py-6 rounded-[30px] uppercase tracking-[0.2em] text-sm shadow-2xl transition-all hover:scale-[1.01]">
-            {carregando ? "Alistando..." : "Confirmar Solicitação"}
+            {carregando ? "Processando..." : "Confirmar Solicitação"}
           </button>
         </form>
         <p className="text-center text-slate-600 text-[9px] uppercase mt-8 tracking-widest font-bold">Templo de Umbanda Sétima Caveira © 2026</p>
