@@ -35,7 +35,7 @@ routes.post('/sessions', SessionController.store);
 
 routes.post(
   '/public/solicitacao', 
-  upload.single('photo'), // 1. O Multer processa a foto e preenche o req.body
+  upload.single('photo_url'), // 1. O Multer processa a foto e preenche o req.body
   (req, res, next) => {   // 2. Middleware de validação simples
     if (!req.body.full_name || !req.body.birth_date) {
       return res.status(400).json({ 
