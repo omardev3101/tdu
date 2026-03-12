@@ -6,19 +6,29 @@ services:
     container_name: tdu_backend
     ports:
       - "3000:3000"
-    # volumes: - ./backend:/usr/src/app (REMOVER PARA DEPLOY)
     env_file:
       - ./backend/.env
     restart: always
+    networks:
+      - tdu_network
 
   frontend:
     build: 
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        # Passa a URL da API durante o build
-        - VITE_API_URL=localhost:3000
+        # IMPORTANTE: Se for rodar local, use seu IP (ex: http://192.168.1.9:3000)
+        # Se for no Render, use a URL que o Render te deu.
+        - VITE_API_URL=http://localhost:3000
     container_name: tdu_frontend
     ports:
-      - "5173:80" # Mapeia a porta 80 interna para 5173 externa
+      - "5173:80" # Nginx roda na 80 interna, expomos na 5173
     restart: always
+    depends_on:
+      - backend
+    networks:
+      - tdu_network
+
+networks:
+  tdu_network:
+    driver: bridge

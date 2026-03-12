@@ -19,7 +19,12 @@ try {
 const app = express();
 
 // --- MIDDLEWARES ---
-app.use(cors()); // Render/Docker exigem CORS habilitado para o Frontend conectar
+app.use(cors({
+  origin: '*', // Em produção, você pode trocar '*' pela URL do seu frontend no Render
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+  credentials: true
+}));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
