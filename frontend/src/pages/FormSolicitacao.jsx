@@ -116,26 +116,25 @@ const handleSubmit = async (e) => {
   try {
     const data = new FormData();
     
-    // 1. Limpeza e Formatação dos Dados para o MySQL
     Object.keys(formData).forEach(key => {
       let value = formData[key];
 
-      // Se for DATA e estiver vazio, envia null (evita erro de string vazia no banco)
+      // Se for DATA e estiver vazio, NÃO ENVIA (o banco assume NULL)
       if ((key === 'birth_date' || key === 'baptism_date') && (value === "" || value === null)) {
-        return; // Pula a inclusão deste campo
+        return; 
       }
 
-      // Converte booleano para 1 ou 0 (necessário para coluna tinyint do banco)
+      // Converte booleano para "1" ou "0" para o campo TINYINT
       if (key === 'is_voter') {
         value = value ? "1" : "0";
       }
 
-      // Limpa máscaras de CPF e CEP para salvar apenas números
+      // Limpa máscaras de CPF e CEP
       if (key === 'document_cpf' || key === 'address_zip') {
         value = value.replace(/\D/g, '');
       }
 
-      // Se o valor ainda for string vazia e não for obrigatório, não envia
+      // Garante que não envie strings vazias em campos opcionais
       if (value === "" && key !== 'full_name' && key !== 'email') {
         return;
       }
@@ -143,21 +142,19 @@ const handleSubmit = async (e) => {
       data.append(key, value);
     });
 
-    // 2. Foto - Usando o nome da coluna do banco: photo_url
+    // Foto - Nome exato da coluna no banco: photo_url
     const res = await fetch(fotoCapturada);
     const blob = await res.blob();
     data.append('photo_url', blob, `biometria_${Date.now()}.jpg`);
 
-    // 3. Envio
     await api.post('/public/solicitacao', data);
 
     setEnviado(true);
     window.scrollTo(0, 0);
   } catch (error) {
-    // Se der erro de validação, tentamos mostrar qual campo foi
     console.error("Erro detalhado:", error.response?.data);
-    const backendMsg = error.response?.data?.details || "Erro de validação nos campos";
-    alert("Não foi possível salvar: " + backendMsg);
+    const msg = error.response?.data?.details || "Erro de validação nos campos.";
+    alert("Falha no cadastro: " + msg);
   } finally {
     setCarregando(false);
   }

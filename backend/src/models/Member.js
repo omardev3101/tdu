@@ -5,72 +5,66 @@ const Member = sequelize.define('Member', {
   // --- Dados Pessoais ---
   full_name: { 
     type: DataTypes.STRING, 
-    allowNull: false,
-    field: 'full_name' 
+    allowNull: false
   },
   photo_url: { 
-    type: DataTypes.TEXT('long'), // Alterado para TEXT('long') caso salve Base64, ou STRING se salvar caminho
-    field: 'photo_url'
+    type: DataTypes.STRING, // Alterado para STRING para salvar o nome do arquivo
+    allowNull: true
   },
   gender: { 
     type: DataTypes.STRING(50),
-    field: 'gender'
+    defaultValue: 'Não Informado'
   },
   document_cpf: { 
     type: DataTypes.STRING(14), 
     unique: true,
-    field: 'document_cpf'
+    allowNull: true
   },
   document_rg: { 
     type: DataTypes.STRING(20),
-    field: 'document_rg' 
+    allowNull: true
   },
   rg_emissor: { 
     type: DataTypes.STRING(20),
-    field: 'rg_emissor'
+    allowNull: true
   },
   phone_whatsapp: { 
     type: DataTypes.STRING(20),
-    field: 'phone_whatsapp'
+    allowNull: true
   },
   birth_date: { 
     type: DataTypes.DATEONLY,
-    field: 'birth_date'
+    allowNull: true
   },
   email: { 
     type: DataTypes.STRING, 
-    unique: true 
+    unique: true,
+    allowNull: true
   },
   password_hash: { 
     type: DataTypes.STRING,
-    field: 'password_hash'
+    allowNull: true
   },
 
   // --- Endereço ---
   address_zip: {
-    type: DataTypes.STRING(10),
-    field: 'address_zip'
+    type: DataTypes.STRING(10)
   },
   address_street: {
-    type: DataTypes.STRING(255),
-    field: 'address_street'
+    type: DataTypes.STRING(255)
   },
   address_number: {
-    type: DataTypes.STRING(10),
-    field: 'address_number'
+    type: DataTypes.STRING(10)
   },
   address_complement: {
-    type: DataTypes.STRING(100),
-    field: 'address_complement'
+    type: DataTypes.STRING(100)
   },
   address_district: {
-    type: DataTypes.STRING(100),
-    field: 'address_district'
+    type: DataTypes.STRING(100)
   },
   address_city: {
     type: DataTypes.STRING(100),
-    defaultValue: 'Diadema',
-    field: 'address_city'
+    defaultValue: 'Diadema'
   },
 
   // --- Dados Religiosos ---
@@ -80,56 +74,45 @@ const Member = sequelize.define('Member', {
   },
   status: {
     type: DataTypes.STRING(20), 
-    defaultValue: 'Pendente',
-    field: 'status'
+    defaultValue: 'Pendente'
   },
   baptism_date: { 
     type: DataTypes.DATEONLY,
-    field: 'baptism_date'
+    allowNull: true
   },
   godparent: { 
-    type: DataTypes.STRING,
-    field: 'godparent'
+    type: DataTypes.STRING
   },
-  previous_house: { // Campo extra para histórico espiritual
-    type: DataTypes.STRING,
-    field: 'previous_house'
+  previous_house: { 
+    type: DataTypes.STRING
   },
 
   // --- Dados Eleitorais / Políticos ---
   is_voter: { 
     type: DataTypes.BOOLEAN, 
-    defaultValue: false,
-    field: 'is_voter'
+    defaultValue: false
   },
   voter_card: { 
-    type: DataTypes.STRING,
-    field: 'voter_card'
+    type: DataTypes.STRING
   },
   voter_zone: { 
-    type: DataTypes.STRING,
-    field: 'voter_zone'
+    type: DataTypes.STRING
   },
   voter_section: { 
-    type: DataTypes.STRING,
-    field: 'voter_section'
+    type: DataTypes.STRING
   },
   political_note: { 
-    type: DataTypes.TEXT,
-    field: 'political_note'
+    type: DataTypes.TEXT
   },
 
   // --- Financeiro ---
   balance_retroactive: {
     type: DataTypes.DECIMAL(10, 2),
-    defaultValue: 0.00,
-    field: 'balance_retroactive'
+    defaultValue: 0.00
   },
   custom_contribution: {
     type: DataTypes.DECIMAL(10, 2),
-    allowNull: true,
-    defaultValue: 100.00,
-    field: 'custom_contribution'
+    defaultValue: 100.00
   },
 
   // --- Controle de Sistema ---
