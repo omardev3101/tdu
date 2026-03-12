@@ -115,37 +115,50 @@ const FormSolicitacao = () => {
     try {
       const data = new FormData();
       
-      // TRATAMENTO PARA EVITAR "VALIDATION ERROR" NO BACKEND
+      // TRATAMENTO RIGOROSO DE DADOS PARA O MYSQL
       Object.keys(formData).forEach(key => {
         let value = formData[key];
 
-        // Se for data e estiver vazia, envia nulo (O banco não aceita string vazia em DATE)
-        if ((key === 'birth_date' || key === 'baptism_date') && value === "") {
-          value = null;
+        // 1. Campos de DATA: Se estiverem vazios, envie NULL (O banco rejeita "")
+        if ((key === 'birth_date' || key === 'baptism_date') && (value === "" || value === null)) {
+          return; // Não adiciona no FormData, o banco assume NULL
         }
 
-        // Converte booleano para 1 ou 0 (necessário para coluna tinyint do banco)
+        // 2. Campo IS_VOTER: Converter de true/false para "1" ou "0" (essencial para tinyint)
         if (key === 'is_voter') {
           value = value ? "1" : "0";
         }
 
-        if (value !== null) {
-          data.append(key, value);
+        // 3. Limpar máscaras de CPF e CEP (O banco tem limite de caracteres)
+        if (key === 'document_cpf' || key === 'address_zip') {
+          value = value.replace(/\D/g, '');
         }
+
+        // 4. Se o valor for vazio e não for obrigatório, melhor não enviar
+        if (value === "" && key !== 'full_name' && key !== 'email') {
+          return;
+        }
+
+        data.append(key, value);
       });
 
-      // Foto convertida para arquivo real
-      const blob = await (await fetch(fotoCapturada)).blob();
-      // O nome deve ser 'photo_url' para casar com sua tabela
+      // Foto - Usando o nome exato da coluna da tabela: photo_url
+      const res = await fetch(fotoCapturada);
+      const blob = await res.blob();
       data.append('photo_url', blob, `biometria_${Date.now()}.jpg`);
 
       await api.post('/public/solicitacao', data);
       setEnviado(true);
       window.scrollTo(0, 0);
     } catch (error) {
-      console.error("Erro no envio:", error.response?.data);
-      alert("Erro ao enviar: " + (error.response?.data?.details || error.response?.data?.error || "Erro de conexão"));
-    } finally { setCarregando(false); }
+      console.error("Erro detalhado no envio:", error.response?.data);
+      
+      // Pega a mensagem de erro específica do Sequelize se houver
+      const backendDetail = error.response?.data?.details || "";
+      alert("Erro ao enviar: " + (backendDetail ? "Verifique os campos: " + backendDetail : "Verifique todos os dados."));
+    } finally {
+      setCarregando(false);
+    }
   };
 
   if (enviado) {
@@ -256,7 +269,7 @@ const FormSolicitacao = () => {
             {carregando ? "Processando..." : "Confirmar Solicitação"}
           </button>
         </form>
-        <p className="text-center text-slate-600 text-[9px] uppercase mt-8 tracking-widest font-bold">Templo de Umbanda Sétima Caveira © 2026</p>
+        <p className="text-center text-slate-600 text-[9px] uppercase mt-8 tracking-widest font-bold">Tdu 7 Caveiras © 2026</p>
       </div>
       <canvas ref={canvasRef} className="hidden" />
     </div>
