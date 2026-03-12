@@ -15,27 +15,37 @@ const FormSolicitacao = () => {
   const canvasRef = useRef(null);
 
   const [formData, setFormData] = useState({
-    // Identificação
-    full_name: '', email: '', phone_whatsapp: '', birth_date: '', gender: 'Não Informado',
-    // Documentos
-    document_cpf: '', document_rg: '', rg_emissor: '',
-    // Endereço
-    address_zip: '', address_street: '', address_number: '', address_complement: '',
-    address_district: '', address_city: 'Diadema',
-    // Espiritual
-    category: 'Corrente', baptism_date: '', godparent: '', previous_house: '',
-    // Eleitoral
-    is_voter: false, voter_card: '', voter_zone: '', voter_section: ''
+    full_name: '', 
+    email: '', 
+    phone_whatsapp: '', 
+    birth_date: '', 
+    gender: 'Não Informado',
+    document_cpf: '', 
+    document_rg: '', 
+    rg_emissor: '',
+    address_zip: '', 
+    address_street: '', 
+    address_number: '', 
+    address_complement: '',
+    address_district: '', 
+    address_city: 'Diadema',
+    category: 'Corrente', 
+    baptism_date: '', 
+    godparent: '', 
+    previous_house: '', // Este é o campo do terreiro antigo
+    is_voter: false, 
+    voter_card: '', 
+    voter_zone: '', 
+    voter_section: '',
+    political_note: ''
   });
 
-  // --- MÁSCARAS NATIVAS ---
   const applyCPFMask = (v) => v.replace(/\D/g, '').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d{1,2})$/, '$1-$2').substring(0, 14);
   const applyPhoneMask = (v) => v.replace(/\D/g, '').replace(/(\d{2})(\d)/, '($1) $2').replace(/(\d{5})(\d)/, '$1-$2').substring(0, 15);
   const applyCEPMask = (v) => v.replace(/\D/g, '').replace(/(\d{5})(\d)/, '$1-$2').substring(0, 9);
 
   const handleChange = (e) => {
     let { name, value, type, checked } = e.target;
-    
     if (name === 'document_cpf') value = applyCPFMask(value);
     if (name === 'phone_whatsapp') value = applyPhoneMask(value);
     if (name === 'address_zip') value = applyCEPMask(value);
@@ -67,7 +77,6 @@ const FormSolicitacao = () => {
     }
   };
 
-  // --- CÂMERA ---
   const ligarCamera = async () => {
     setFotoCapturada(null);
     setCameraAtiva(true);
@@ -101,9 +110,35 @@ const FormSolicitacao = () => {
     e.preventDefault();
     if (!fotoCapturada) return alert("A biometria facial é obrigatória.");
     setCarregando(true);
+    
     try {
       const data = new FormData();
-      Object.keys(formData).forEach(key => data.append(key, formData[key]));
+      
+      // TRATAMENTO DE DADOS PARA EVITAR VALIDATION ERROR NO BANCO
+      Object.keys(formData).forEach(key => {
+        let value = formData[key];
+
+        // 1. Limpa máscaras de campos numéricos para o banco
+        if (key === 'document_cpf' || key === 'address_zip') {
+            value = value.replace(/\D/g, '');
+        }
+
+        // 2. Trata datas vazias como NULL (o banco não aceita "" em DATE)
+        if ((key === 'birth_date' || key === 'baptism_date') && value === "") {
+            value = null;
+        }
+
+        // 3. Converte Boolean para 0 ou 1 (TINYINT no MySQL)
+        if (key === 'is_voter') {
+            value = formData[key] ? "1" : "0";
+        }
+
+        if (value !== null && value !== undefined) {
+            data.append(key, value);
+        }
+      });
+
+      // Foto - Nomeada como photo_url para casar com o Multer/Banco
       const res = await fetch(fotoCapturada);
       const blob = await res.blob();
       data.append('photo_url', blob, `biometria_${Date.now()}.jpg`);
@@ -113,7 +148,7 @@ const FormSolicitacao = () => {
       window.scrollTo(0, 0);
     } catch (error) {
       console.error("Erro no envio:", error.response?.data);
-      alert("Erro ao enviar: " + (error.response?.data?.message || "Erro de conexão"));
+      alert("Erro ao enviar: " + (error.response?.data?.details || error.response?.data?.error || "Verifique os campos e tente novamente."));
     } finally { setCarregando(false); }
   };
 
@@ -159,7 +194,7 @@ const FormSolicitacao = () => {
             </button>
           </div>
 
-          {/* 01. DADOS PESSOAIS */}
+          {/* 01. IDENTIFICAÇÃO */}
           <div className="bg-slate-900/40 border border-slate-800 p-8 rounded-[32px] space-y-4 shadow-xl">
             <h3 className="text-red-500 font-black text-[10px] uppercase tracking-widest flex items-center gap-2"><User size={14}/> 01. Identificação</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -175,13 +210,11 @@ const FormSolicitacao = () => {
               </select>
               <input type="email" name="email" placeholder="E-mail" className="bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 outline-none focus:border-red-600" onChange={handleChange} required />
             </div>
-            <p className="text-slate-500 text-xs uppercase tracking-widest font-bold">Esses dados são essenciais para o cadastro e contato.</p>
           </div>
 
           {/* 02. ENDEREÇO */}
           <div className="bg-slate-900/40 border border-slate-800 p-8 rounded-[32px] space-y-4 shadow-xl">
             <h3 className="text-red-500 font-black text-[10px] uppercase tracking-widest flex items-center gap-2"><MapPin size={14}/> 02. Localização</h3>
-            <p className="text-slate-500 text-xs uppercase tracking-widest font-bold"> Preencha o CEP primeiro para auto completar.</p>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <input type="text" name="address_zip" value={formData.address_zip} placeholder="CEP" className="bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 outline-none focus:border-red-600" onChange={handleCEP} required />
               <input type="text" name="address_street" value={formData.address_street} placeholder="Rua / Logradouro" className="col-span-3 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 outline-none" onChange={handleChange} />
@@ -195,11 +228,13 @@ const FormSolicitacao = () => {
           <div className="bg-slate-900/40 border border-slate-800 p-8 rounded-[32px] space-y-4 shadow-xl">
             <h3 className="text-red-500 font-black text-[10px] uppercase tracking-widest flex items-center gap-2"><Church size={14}/> 03. Jornada Espiritual</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <select name="category" className="bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 outline-none text-slate-400" onChange={handleChange}>
+              <select name="category" value={formData.category} className="bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 outline-none text-slate-400" onChange={handleChange}>
                   <option value="Corrente">Corrente</option>
                   <option value="Assistência">Assistência</option>
                   <option value="Ogã">Ogã</option>
                   <option value="Cambone">Cambone</option>
+                  <option value="Pai de Pequeno">Pai de Pequeno</option>
+                  <option value="Mãe de Pequena">Mãe de Pequena</option>
               </select>
               <input type="date" name="baptism_date" placeholder="Data Batismo" className="bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 outline-none text-slate-400" onChange={handleChange} />
               <input type="text" name="godparent" placeholder="Padrinho / Madrinha" className="bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 outline-none col-span-1" onChange={handleChange} />
@@ -212,7 +247,7 @@ const FormSolicitacao = () => {
             <h3 className="text-red-500 font-black text-[10px] uppercase tracking-widest flex items-center gap-2"><ClipboardList size={14}/> 04. Dados Eleitorais</h3>
             <label className="flex items-center gap-3 cursor-pointer bg-slate-950 p-4 rounded-xl border border-slate-800 group transition-all">
               <input type="checkbox" name="is_voter" checked={formData.is_voter} onChange={handleChange} className="w-5 h-5 accent-red-600" />
-              <span className="text-xs font-black text-slate-500 uppercase group-hover:text-white transition-colors">Sou Eleitor</span>
+              <span className="text-xs font-black text-slate-500 uppercase group-hover:text-white transition-colors">Sou Eleitor em Diadema / Região</span>
             </label>
             {formData.is_voter && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-in slide-in-from-top-2 duration-300">
@@ -224,10 +259,10 @@ const FormSolicitacao = () => {
           </div>
 
           <button type="submit" disabled={carregando} className="w-full bg-red-600 hover:bg-red-700 text-white font-black py-6 rounded-[30px] uppercase tracking-[0.2em] text-sm shadow-2xl transition-all hover:scale-[1.01]">
-            {carregando ? "Solicitando entrada..." : "Confirmar Solicitação"}
+            {carregando ? "Alistando..." : "Confirmar Solicitação"}
           </button>
         </form>
-        <p className="text-center text-slate-600 text-[9px] uppercase mt-8 tracking-widest font-bold">TDU 7 CAVEIRAS © 2026</p>
+        <p className="text-center text-slate-600 text-[9px] uppercase mt-8 tracking-widest font-bold">Templo de Umbanda Sétima Caveira © 2026</p>
       </div>
       <canvas ref={canvasRef} className="hidden" />
     </div>
