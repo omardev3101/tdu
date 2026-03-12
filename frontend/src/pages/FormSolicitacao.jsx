@@ -173,11 +173,13 @@ const FormSolicitacao = () => {
               </select>
               <input type="email" name="email" placeholder="E-mail" className="bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 outline-none focus:border-red-600" onChange={handleChange} required />
             </div>
+            <p className="text-slate-500 text-xs uppercase tracking-widest font-bold">Esses dados são essenciais para o cadastro e contato.</p>
           </div>
 
           {/* 02. ENDEREÇO */}
           <div className="bg-slate-900/40 border border-slate-800 p-8 rounded-[32px] space-y-4 shadow-xl">
             <h3 className="text-red-500 font-black text-[10px] uppercase tracking-widest flex items-center gap-2"><MapPin size={14}/> 02. Localização</h3>
+            <p className="text-slate-500 text-xs uppercase tracking-widest font-bold"> Preencha o CEP primeiro para auto completar.</p>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <input type="text" name="address_zip" value={formData.address_zip} placeholder="CEP" className="bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 outline-none focus:border-red-600" onChange={handleCEP} required />
               <input type="text" name="address_street" value={formData.address_street} placeholder="Rua / Logradouro" className="col-span-3 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 outline-none" onChange={handleChange} />
@@ -208,7 +210,7 @@ const FormSolicitacao = () => {
             <h3 className="text-red-500 font-black text-[10px] uppercase tracking-widest flex items-center gap-2"><ClipboardList size={14}/> 04. Dados Eleitorais</h3>
             <label className="flex items-center gap-3 cursor-pointer bg-slate-950 p-4 rounded-xl border border-slate-800 group transition-all">
               <input type="checkbox" name="is_voter" checked={formData.is_voter} onChange={handleChange} className="w-5 h-5 accent-red-600" />
-              <span className="text-xs font-black text-slate-500 uppercase group-hover:text-white transition-colors">Voto em Diadema / Região</span>
+              <span className="text-xs font-black text-slate-500 uppercase group-hover:text-white transition-colors">Sou Eleitor</span>
             </label>
             {formData.is_voter && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-in slide-in-from-top-2 duration-300">
