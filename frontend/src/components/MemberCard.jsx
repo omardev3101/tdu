@@ -6,15 +6,19 @@ import { Printer, ShieldCheck, X, MapPin } from 'lucide-react';
 // Importe o logo da sua pasta de assets
 import logoImg from '../assets/logo-tdu.png'; 
 
+// Definição das URLs dinâmicas (Ajusta automaticamente para Render ou Local)
+const API_URL = import.meta.env.VITE_API_URL || 'https://tdu-api.onrender.com';
+const FRONT_URL = window.location.origin; // Pega automaticamente a URL onde o site está rodando
+
 // Componente do Conteúdo (O que será impresso)
 const MemberCardContent = React.forwardRef(({ member }, ref) => {
-  // Ajuste a porta (3000 ou 3333) conforme o seu backend
+  // Ajuste: Agora busca a foto na URL da API (Render ou Local)
   const photoUrl = member.photo_url 
-    ? `http://localhost:3000/uploads/${member.photo_url}` 
+    ? `${API_URL}/uploads/${member.photo_url}` 
     : 'https://via.placeholder.com/150';
 
-  // URL de validação para o QR Code
-  const validationUrl = `http://localhost:5173/validate/${member.id}`;
+  // URL de validação para o QR Code (Aponta para o seu site atual)
+  const validationUrl = `${FRONT_URL}/validate/${member.id}`;
 
   return (
     <div 
@@ -57,13 +61,18 @@ const MemberCardContent = React.forwardRef(({ member }, ref) => {
           {/* Corpo: Foto e Dados */}
           <div className="flex gap-4 mt-1">
             <div className="w-24 h-28 bg-slate-900 rounded-xl border-2 border-slate-700 overflow-hidden shadow-lg p-0.5">
-              <img src={photoUrl} alt="Foto Membro" className="w-full h-full object-cover rounded-lg" />
+              <img 
+                src={photoUrl} 
+                alt="Foto Membro" 
+                className="w-full h-full object-cover rounded-lg"
+                onError={(e) => { e.target.src = 'https://via.placeholder.com/150'; }} 
+              />
             </div>
             
             <div className="flex-1 space-y-2.5">
               <div>
                 <p className="text-[8px] text-slate-500 uppercase font-bold tracking-wider">Nome Completo</p>
-                <p className="text-[12px] font-extrabold leading-tight uppercase text-slate-100 drop-shadow-sm">{member.fullName}</p>
+                <p className="text-[12px] font-extrabold leading-tight uppercase text-slate-100 drop-shadow-sm">{member.full_name}</p>
               </div>
               
               <div className="grid grid-cols-2 gap-x-2 gap-y-1.5 pt-1">
@@ -77,7 +86,9 @@ const MemberCardContent = React.forwardRef(({ member }, ref) => {
                 </div>
                 <div className="col-span-2">
                   <p className="text-[8px] text-slate-500 uppercase font-bold tracking-wider">Batismo</p>
-                  <p className="text-[9px] text-slate-300 font-medium">{member.baptismDate || '---'}</p>
+                  <p className="text-[9px] text-slate-300 font-medium">
+                    {member.baptism_date ? new Date(member.baptism_date).toLocaleDateString('pt-BR') : '---'}
+                  </p>
                 </div>
               </div>
             </div>
@@ -130,10 +141,9 @@ const MemberCardContent = React.forwardRef(({ member }, ref) => {
 export default function MemberCard({ member, isOpen, onClose }) {
   const componentRef = useRef(null);
 
-  // Hook configurado para a versão mais recente da biblioteca
   const handlePrint = useReactToPrint({
-    contentRef: componentRef, // Referência correta conforme erro anterior
-    documentTitle: `Carteirinha_${member?.fullName?.replace(/\s+/g, '_')}`,
+    contentRef: componentRef,
+    documentTitle: `Carteirinha_${member?.full_name?.replace(/\s+/g, '_')}`,
   });
 
   if (!isOpen || !member) return null;

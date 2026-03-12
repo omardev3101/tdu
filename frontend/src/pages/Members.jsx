@@ -4,6 +4,9 @@ import { UserPlus, Pencil, Trash2, ShieldCheck, Scroll, Loader2 } from 'lucide-r
 import MemberModal from '../components/MemberModal';
 import MemberCard from '../components/MemberCard';
 
+// Definição da URL da API (Render ou Local)
+const API_URL = import.meta.env.VITE_API_URL || 'https://tdu-api.onrender.com';
+
 export default function Members() {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -20,7 +23,7 @@ export default function Members() {
   async function loadMembers() {
     try {
       setLoading(true);
-      const response = await api.get('/members');
+      const response = await api.get('/admin/membros'); // Ajustado para sua rota protegida
       setMembers(response.data);
     } catch (error) {
       console.error("Erro ao carregar membros:", error);
@@ -42,14 +45,14 @@ export default function Members() {
   }
 
   const formatarCPF = (cpf) => {
-  if (!cpf) return 'Sem CPF';
-  return cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
-};
+    if (!cpf) return '---';
+    return cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+  };
 
   async function handleDelete(id) {
-    if (window.confirm('Deseja realmente excluir este membro?')) {
+    if (window.confirm('Deseja realmente excluir este membro do TDU?')) {
       try {
-        await api.delete(`/members/${id}`);
+        await api.delete(`/admin/membro/${id}`);
         loadMembers();
       } catch (error) {
         alert("Erro ao excluir membro.");
@@ -63,9 +66,9 @@ export default function Members() {
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
-            <ShieldCheck className="text-red-600" /> Membros do Terreiro
+            <ShieldCheck className="text-red-600" /> Membros da Corrente
           </h1>
-          <p className="text-slate-400 text-sm">Gerenciamento de integrantes e funções</p>
+          <p className="text-slate-400 text-sm">Gerenciamento interno TDU - 7 Caveiras</p>
         </div>
         
         <button 
@@ -93,27 +96,29 @@ export default function Members() {
               <tr key={member.id} className="hover:bg-slate-800/30 transition-colors group">
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-3">
-                    {/* Miniatura da foto na tabela */}
+                    {/* Miniatura da foto na tabela com tratamento de URL dinâmica */}
                     <div className="w-10 h-10 rounded-lg bg-slate-800 border border-slate-700 overflow-hidden flex-shrink-0">
                       {member.photo_url ? (
                         <img 
-                          src={`http://localhost:3000/uploads/${member.photo_url}`} 
+                          src={`${API_URL}/uploads/${member.photo_url}`} 
                           className="w-full h-full object-cover"
                           alt=""
+                          onError={(e) => {
+                            e.target.onerror = null; 
+                            e.target.src = 'https://via.placeholder.com/40?text=TDU';
+                          }}
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-slate-600 text-xs uppercase font-bold">
-{member.full_name ? member.full_name.charAt(0) : '?'}                        </div>
+                          {member.full_name ? member.full_name.charAt(0) : '?'}
+                        </div>
                       )}
                     </div>
                     <div>
-                      <div className="font-medium text-slate-200">{member.fullName}</div>
-                      
-
-
-<div className="text-[10px] text-slate-500 font-mono uppercase tracking-tighter">
-  {formatarCPF(member.document_cpf)}
-</div>
+                      <div className="font-medium text-slate-200">{member.full_name}</div>
+                      <div className="text-[10px] text-slate-500 font-mono uppercase tracking-tighter">
+                        {formatarCPF(member.document_cpf)}
+                      </div>
                     </div>
                   </div>
                 </td>
@@ -126,9 +131,9 @@ export default function Members() {
                   <span className={`inline-flex px-3 py-1 rounded-full text-[10px] font-bold uppercase border ${
                     member.status === 'Ativo' 
                     ? 'bg-green-500/10 text-green-500 border-green-500/20' 
-                    : 'bg-red-500/10 text-red-500 border-red-500/20'
+                    : 'bg-amber-500/10 text-amber-500 border-amber-500/20'
                   }`}>
-                    {member.status}
+                    {member.status || 'Pendente'}
                   </span>
                 </td>
                 
@@ -171,11 +176,11 @@ export default function Members() {
         {loading ? (
           <div className="p-20 text-center text-slate-500 flex flex-col items-center gap-4">
             <Loader2 className="animate-spin text-red-600" size={40} />
-            <span className="animate-pulse">Sincronizando com o Terreiro...</span>
+            <span className="animate-pulse">Sincronizando dados...</span>
           </div>
         ) : members.length === 0 && (
           <div className="p-20 text-center text-slate-500">
-            Nenhum membro encontrado. Clique em "Novo Membro" para começar.
+            Nenhum membro encontrado.
           </div>
         )}
       </div>

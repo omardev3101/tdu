@@ -1,153 +1,121 @@
 import React, { useEffect, useState } from 'react';
-import { UserCheck, UserX, Clock, ShieldCheck, DollarSign } from 'lucide-react';
-import { useNavigate } from 'react-router-dom'; 
-import api from '../services/api'; 
+import { useParams } from 'react-router-dom';
+import api from '../services/api'; // Importando sua instância do axios já configurada
+import { ShieldCheck, ShieldAlert, User, Calendar, Award, Loader2 } from 'lucide-react';
 
-const Solicitacoes = () => {
-  const [pendentes, setPendentes] = useState([]);
+// URL base para carregar as fotos do Render
+const API_URL = import.meta.env.VITE_API_URL || 'https://tdu-api.onrender.com';
+
+export default function MemberValidate() {
+  const { id } = useParams();
+  const [member, setMember] = useState(null);
   const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
-
-  const carregarPendentes = async () => {
-    try {
-      setLoading(true);
-      const res = await api.get('/admin/solicitacoes-pendentes');
-      // Garantimos que pendentes seja sempre um array
-      setPendentes(Array.isArray(res.data) ? res.data : []);
-    } catch (err) {
-      console.error("Erro ao buscar solicitações:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   useEffect(() => {
-    carregarPendentes();
-  }, []);
-
-  // FLUXO CORRIGIDO: Redirecionamento relativo ao Dashboard
-  const handleAprovar = async (id, nome) => {
-    if (window.confirm(`Deseja aprovar ${nome}? Você será redirecionado para configurar o acesso e o financeiro.`)) {
+    async function loadMember() {
       try {
-        // 1. Chamada ao backend para mudar status
-        await api.put(`/admin/aprovar/${id}`);
-        
-        // 2. REDIRECIONAMENTO CORRIGIDO:
-        // Como o componente Solicitacoes já está em /dashboard/solicitacoes,
-        // navegamos para a rota irmã que definimos no App.jsx.
-        navigate(`/dashboard/members/${id}`); 
-        
+        // Usando a instância 'api' que já resolve para o Render ou Local automaticamente
+        const response = await api.get(`/public/membro/${id}`);
+        setMember(response.data);
       } catch (err) {
-        console.error(err);
-        alert("Erro ao aprovar membro no banco de dados.");
+        console.error("Erro ao validar membro:", err);
+      } finally {
+        setLoading(false);
       }
     }
-  };
+    loadMember();
+  }, [id]);
 
-  const handleDescartar = async (id, nome) => {
-    if (window.confirm(`Tem certeza que deseja DESCARTAR ${nome}?`)) {
-      try {
-        await api.delete(`/admin/descartar/${id}`);
-        carregarPendentes();
-      } catch (err) {
-        alert("Erro ao descartar.");
-      }
-    }
-  };
-
-  return (
-    <div className="p-8 animate-fade-in">
-      {/* HEADER */}
-      <div className="mb-10 flex justify-between items-end">
-        <div>
-          <h1 className="text-3xl font-black text-white uppercase tracking-tighter">Fila de Aprovação</h1>
-          <p className="text-slate-500 text-sm font-medium italic mt-1">"A casa acolhe, a diretoria organiza."</p>
-        </div>
-        <div className="bg-red-600/10 border border-red-600/20 px-6 py-2 rounded-full">
-          <span className="text-red-500 text-[10px] font-black uppercase tracking-[0.2em]">
-            {pendentes.length} Pendentes
-          </span>
-        </div>
-      </div>
-
-      {/* TABELA */}
-      <div className="bg-slate-900/40 border border-slate-800 rounded-[32px] overflow-hidden backdrop-blur-xl shadow-2xl">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-slate-800 bg-slate-800/20 text-slate-500 text-[10px] uppercase tracking-[0.25em]">
-                <th className="p-6 font-black">Nome do Irmão(ã)</th>
-                <th className="p-6 font-black">Categoria</th>
-                <th className="p-6 font-black text-center">Entrada</th>
-                <th className="p-6 font-black text-right">Decisão</th>
-              </tr>
-            </thead>
-            <tbody className="text-slate-300 divide-y divide-slate-800/30">
-              {loading ? (
-                 <tr>
-                    <td colSpan="4" className="p-24 text-center">
-                      <div className="flex flex-col items-center gap-4">
-                        <div className="w-8 h-8 border-4 border-red-600 border-t-transparent rounded-full animate-spin"></div>
-                        <span className="text-[10px] uppercase font-black tracking-widest text-slate-600">Sincronizando Axé...</span>
-                      </div>
-                    </td>
-                 </tr>
-              ) : pendentes.length === 0 ? (
-                <tr>
-                  <td colSpan="4" className="p-24 text-center">
-                    <Clock className="mx-auto mb-4 text-slate-800" size={48} />
-                    <p className="text-slate-500 font-bold uppercase text-[10px] tracking-widest">Tudo em dia. Nenhuma solicitação.</p>
-                  </td>
-                </tr>
-              ) : (
-                pendentes.map(membro => (
-                  <tr key={membro.id} className="hover:bg-white/[0.01] transition-colors group">
-                    <td className="p-6">
-                      <div className="flex flex-col">
-                        <span className="font-bold text-white group-hover:text-red-500 transition-colors uppercase tracking-tight">
-                          {membro.full_name}
-                        </span>
-                        <span className="text-[10px] text-slate-600 font-medium">{membro.email}</span>
-                      </div>
-                    </td>
-                    <td className="p-6">
-                      <span className="bg-slate-950 text-slate-400 text-[9px] px-3 py-1 rounded-lg border border-slate-800 uppercase font-black tracking-tighter">
-                        {membro.category}
-                      </span>
-                    </td>
-                    <td className="p-6 text-center text-slate-500 text-xs tabular-nums font-medium">
-                      {new Date(membro.createdAt).toLocaleDateString('pt-BR')}
-                    </td>
-                    <td className="p-6 text-right">
-                      <div className="flex justify-end gap-3">
-                        <button 
-                          onClick={() => handleAprovar(membro.id, membro.full_name)}
-                          className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-3 rounded-2xl transition-all hover:scale-105 active:scale-95 text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-900/20"
-                        >
-                          <UserCheck size={14} /> Aprovar
-                        </button>
-                        
-                        <button 
-                          onClick={() => handleDescartar(membro.id, membro.full_name)}
-                          className="flex items-center gap-2 bg-slate-800/40 hover:bg-red-600/20 hover:text-red-500 text-slate-500 px-4 py-3 rounded-2xl border border-transparent hover:border-red-600/30 transition-all text-[10px] font-black uppercase tracking-widest"
-                        >
-                          <UserX size={14} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-      
-      <p className="mt-8 text-[10px] text-slate-700 uppercase font-black tracking-[0.3em] text-center">
-        TDU 7 Caveiras - Gestão de Terreiro
-      </p>
+  if (loading) return (
+    <div className="h-screen bg-slate-950 flex flex-col items-center justify-center text-white gap-4">
+      <Loader2 className="animate-spin text-red-600" size={48} />
+      <span className="text-slate-400 font-bold uppercase tracking-widest text-xs">Validando Identidade...</span>
     </div>
   );
-};
 
-export default Solicitacoes;
+  if (!member) return (
+    <div className="h-screen bg-slate-950 flex flex-col items-center justify-center p-6 text-center">
+      <ShieldAlert size={80} className="text-red-600 mb-4" />
+      <h1 className="text-2xl font-bold text-white uppercase tracking-tighter">Registro não encontrado</h1>
+      <p className="text-slate-400 mt-2 max-w-xs">Este QR Code pode estar desatualizado ou o membro não consta mais na corrente ativa.</p>
+      <button 
+        onClick={() => window.location.href = 'https://tdu-front.onrender.com'}
+        className="mt-8 px-6 py-2 bg-slate-800 text-white rounded-full text-xs font-bold uppercase"
+      >
+        Voltar ao Portal
+      </button>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-slate-950 p-6 font-sans">
+      <div className="max-w-md mx-auto bg-slate-900 rounded-[40px] overflow-hidden shadow-2xl border border-slate-800">
+        
+        {/* Status Header */}
+        <div className="bg-emerald-600 p-8 text-center relative overflow-hidden">
+          {/* Efeito de brilho no fundo */}
+          <div className="absolute top-0 left-0 w-full h-full bg-white/10 -skew-x-12 translate-x-full animate-[shimmer_2s_infinite]"></div>
+          <ShieldCheck size={70} className="text-white mx-auto mb-2 drop-shadow-lg" />
+          <h2 className="text-2xl font-black text-white uppercase tracking-tighter">Membro Autenticado</h2>
+          <p className="text-emerald-100 text-[10px] uppercase font-bold tracking-widest opacity-80">Identidade Digital TDU</p>
+        </div>
+
+        <div className="p-8 flex flex-col items-center">
+          {/* Foto do Membro - Agora carregando do Render */}
+          <div className="w-40 h-40 rounded-3xl border-4 border-slate-800 overflow-hidden mb-6 shadow-2xl bg-slate-800">
+            <img 
+              src={`${API_URL}/uploads/${member.photo_url}`} 
+              alt="Foto do Membro" 
+              className="w-full h-full object-cover"
+              onError={(e) => e.target.src = 'https://via.placeholder.com/150?text=TDU'}
+            />
+          </div>
+
+          <h1 className="text-2xl font-black text-white text-center uppercase leading-tight mb-2 tracking-tighter">
+            {member.full_name}
+          </h1>
+          <span className="px-5 py-1.5 bg-red-600 text-white rounded-full text-xs font-black uppercase tracking-widest shadow-lg shadow-red-900/20">
+            {member.category}
+          </span>
+
+          <div className="w-full mt-10 space-y-3">
+            <div className="flex items-center gap-4 bg-slate-800/40 p-5 rounded-3xl border border-slate-700/50">
+              <Award className="text-red-600" size={24} />
+              <div>
+                <p className="text-[10px] text-slate-500 uppercase font-black tracking-widest">Matrícula da Corrente</p>
+                <p className="text-white font-mono font-bold text-lg">#{String(member.id).padStart(4, '0')}</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4 bg-slate-800/40 p-5 rounded-3xl border border-slate-700/50">
+              <Calendar className="text-red-600" size={24} />
+              <div>
+                <p className="text-[10px] text-slate-500 uppercase font-black tracking-widest">Data de Ingresso</p>
+                <p className="text-white font-bold text-lg">
+                    {member.baptism_date ? new Date(member.baptism_date).toLocaleDateString('pt-BR') : '---'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4 bg-slate-800/40 p-5 rounded-3xl border border-slate-700/50">
+              <User className="text-red-600" size={24} />
+              <div>
+                <p className="text-[10px] text-slate-500 uppercase font-black tracking-widest">Status de Vínculo</p>
+                <p className="text-emerald-500 font-black uppercase text-lg tracking-tighter">Ativo na Casa</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-12 pt-6 border-t border-slate-800 w-full text-center">
+            <p className="text-[9px] text-slate-600 uppercase tracking-[0.3em] font-black">
+              Templo de Umbanda Sétima Caveira
+            </p>
+            <p className="text-[8px] text-slate-700 mt-1 uppercase font-bold">
+              Verificado em: {new Date().toLocaleString('pt-BR')}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
