@@ -104,13 +104,15 @@ const FormSolicitacao = () => {
     try {
       const data = new FormData();
       Object.keys(formData).forEach(key => data.append(key, formData[key]));
-      const blob = await (await fetch(fotoCapturada)).blob();
-      data.append('photo', blob, `biometria_${Date.now()}.jpg`);
+      const res = await fetch(fotoCapturada);
+      const blob = await res.blob();
+      data.append('photo_url', blob, `biometria_${Date.now()}.jpg`);
 
       await api.post('/public/solicitacao', data);
       setEnviado(true);
       window.scrollTo(0, 0);
     } catch (error) {
+      console.error("Erro no envio:", error.response?.data);
       alert("Erro ao enviar: " + (error.response?.data?.message || "Erro de conexão"));
     } finally { setCarregando(false); }
   };
@@ -222,10 +224,10 @@ const FormSolicitacao = () => {
           </div>
 
           <button type="submit" disabled={carregando} className="w-full bg-red-600 hover:bg-red-700 text-white font-black py-6 rounded-[30px] uppercase tracking-[0.2em] text-sm shadow-2xl transition-all hover:scale-[1.01]">
-            {carregando ? "Alistando..." : "Confirmar Solicitação"}
+            {carregando ? "Solicitando entrada..." : "Confirmar Solicitação"}
           </button>
         </form>
-        <p className="text-center text-slate-600 text-[9px] uppercase mt-8 tracking-widest font-bold">Templo de Umbanda Sétima Caveira © 2026</p>
+        <p className="text-center text-slate-600 text-[9px] uppercase mt-8 tracking-widest font-bold">TDU 7 CAVEIRAS © 2026</p>
       </div>
       <canvas ref={canvasRef} className="hidden" />
     </div>

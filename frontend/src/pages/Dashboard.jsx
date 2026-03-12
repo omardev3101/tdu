@@ -55,9 +55,19 @@ export default function Dashboard() {
       <aside className="w-64 bg-slate-900 border-r border-slate-800 p-6 hidden md:flex flex-col">
         <div className="mb-10 text-center">
           <div className="mb-2">
-            {/* Ajuste o caminho da imagem conforme sua estrutura */}
-            <img src={logo} alt="Logo" className="w-16 h-16 mx-auto drop-shadow-[0_0_10px_rgba(220,38,38,0.3)]" />
-          </div>
+  {/* Ajuste o caminho da imagem conforme sua estrutura */}
+  {/* 1. Criamos um container circular com fundo branco e a sombra.
+    2. Centralizamos a imagem dentro dele com Flexbox.
+  */}
+  <div className="w-20 h-20 mx-auto bg-white rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(220,38,38,0.2)]">
+    <img 
+      src={logo} 
+      alt="Logo TDU" 
+      {/* A imagem interna fica um pouco menor (w-16) para criar uma borda branca */}
+      className="w-16 h-16 object-contain" 
+    />
+  </div>
+</div>
           <h2 className="text-2xl font-black text-red-600 tracking-tighter italic">7 CAVEIRAS</h2>
           <p className="text-[10px] text-slate-500 uppercase tracking-[0.2em] font-bold">Gestão de Terreiro</p>
         </div>
