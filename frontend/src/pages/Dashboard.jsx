@@ -5,6 +5,7 @@ import {
   LayoutDashboard, UserPlus, Handshake 
 } from 'lucide-react';
 import api from '../services/api';
+import logo from '../assets/logo-tdu.png';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -55,7 +56,7 @@ export default function Dashboard() {
         <div className="mb-10 text-center">
           <div className="mb-2">
             {/* Ajuste o caminho da imagem conforme sua estrutura */}
-            <img src="/assets/logo-tdu.png" alt="Logo" className="w-16 h-16 mx-auto drop-shadow-[0_0_10px_rgba(220,38,38,0.3)]" />
+            <img src={logo} alt="Logo" className="w-16 h-16 mx-auto drop-shadow-[0_0_10px_rgba(220,38,38,0.3)]" />
           </div>
           <h2 className="text-2xl font-black text-red-600 tracking-tighter italic">7 CAVEIRAS</h2>
           <p className="text-[10px] text-slate-500 uppercase tracking-[0.2em] font-bold">Gestão de Terreiro</p>

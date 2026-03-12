@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import axios from 'axios';
+// 1. IMPORTANTE: Importe a sua instância customizada, não o axios puro
+import api from '../services/api'; 
 import { useNavigate } from 'react-router-dom';
 import { Lock, Mail } from 'lucide-react';
 
@@ -11,11 +12,16 @@ export default function Login() {
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
-      const response = await axios.post('http://localhost:3000/sessions', { email, password });
+      // 2. Use 'api.post' em vez de 'axios.post' com a URL fixa
+      // O '/sessions' será anexado à baseURL que configuramos no api.js
+      const response = await api.post('/sessions', { email, password });
+      
       localStorage.setItem('@TDU:token', response.data.token);
       localStorage.setItem('@TDU:user', JSON.stringify(response.data.user));
+      
       navigate('/dashboard');
     } catch (err) {
+      console.error(err);
       alert('Erro ao acessar. Verifique suas credenciais.');
     }
   };
