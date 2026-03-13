@@ -122,6 +122,6 @@ export default function MemberValidate() {
           </div>
         </div>
       </div>
-    </div>
+    
   );
 }
