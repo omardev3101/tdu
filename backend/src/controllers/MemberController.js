@@ -28,7 +28,7 @@ module.exports = {
           data[key] = null;
         }
       });
-      data.photo_url = req.file.path;
+      data.photo_url = req.file.path || req.file.secure_url || req.file.filename;
 
       // Tratamento do campo is_voter (MySQL tinyint)
       if (data.is_voter !== undefined) {

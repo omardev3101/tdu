@@ -9,7 +9,7 @@ WORKDIR /usr/src/app
 COPY package*.json ./
 
 # 4. Instala apenas o necessário para produção
-RUN npm install --omit=dev
+RUN npm install --legacy-peer-deps
 
 # 5. Copia todo o código do backend
 COPY . .
