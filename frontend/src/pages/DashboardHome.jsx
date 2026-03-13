@@ -59,7 +59,7 @@ export default function DashboardHome() {
     async function loadStats() {
       try {
         const [membersRes, contributionsRes, agreementsRes] = await Promise.all([
-          api.get('/members'),
+          api.get('admin/members'),
           api.get('/contributions'),
           api.get('/agreements') 
         ]);

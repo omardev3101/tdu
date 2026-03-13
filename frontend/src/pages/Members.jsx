@@ -16,23 +16,26 @@ export default function Members() {
   const [selectedMember, setSelectedMember] = useState(null); 
   const [selectedForCard, setSelectedForCard] = useState(null);
 
+  // 1. Corrija o useEffect para chamar a função de listagem correta
   useEffect(() => {
     loadMembers();
   }, []);
 
+  // 2. Garanta que a função loadMembers use a rota correta do admin
   async function loadMembers() {
-  try {
-    setLoading(true);
-    setMembers([]); // Limpa a lista antes de carregar a nova
-    const response = await api.get('/admin/members');
-    console.log("Membros recebidos:", response.data); // Verifique isso no console!
-    setMembers(response.data);
-  } catch (error) {
-    console.error("Erro ao carregar membros:", error);
-  } finally {
-    setLoading(false);
+    try {
+      setLoading(true);
+      // Importante: Limpa a lista antes para evitar fantasmas de cache
+      setMembers([]); 
+      const response = await api.get('/admin/members');
+      console.log("Dados recebidos da API:", response.data);
+      setMembers(response.data);
+    } catch (error) {
+      console.error("Erro ao carregar membros:", error);
+    } finally {
+      setLoading(false);
+    }
   }
-}
 
   // Abre modal para criação
   function handleAddMember() {
