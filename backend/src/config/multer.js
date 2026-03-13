@@ -1,19 +1,18 @@
 const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
-const { CloudinaryStorage } = require('multer-storage-cloudinary');
+const multerStorageCloudinary = require('multer-storage-cloudinary');
 require('dotenv').config();
 
-// Configuração explícita usando a URL ou as chaves individuais
-if (process.env.CLOUDINARY_URL) {
-  // O Cloudinary v2 aceita a configuração automática via URL se chamada assim:
-  cloudinary.config(); 
-} else {
-  cloudinary.config({
-    cloud_name: process.env.CLOUDINARY_NAME,
-    api_key: process.env.CLOUDINARY_API_KEY,
-    api_secret: process.env.CLOUDINARY_API_SECRET
-  });
-}
+// Configuração Manual Robusta para o Render
+// Se a URL do Cloudinary não for detectada, ele usa as chaves individuais
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_NAME || 'dt4lipgxt',
+  api_key: process.env.CLOUDINARY_API_KEY || '871267352253446',
+  api_secret: process.env.CLOUDINARY_API_SECRET || 'tqmdnrui8NrRDaqXsoG6TnyWWWE'
+});
+
+// Garante que o construtor seja carregado corretamente
+const CloudinaryStorage = multerStorageCloudinary.CloudinaryStorage || multerStorageCloudinary;
 
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
@@ -21,8 +20,8 @@ const storage = new CloudinaryStorage({
     folder: 'tdu_membros',
     format: async (req, file) => 'jpg',
     public_id: (req, file) => {
-      const name = file.originalname.split('.')[0].replace(/\s+/g, '-');
-      return `membro-${Date.now()}-${name}`;
+      const timestamp = Date.now();
+      return `membro-${timestamp}`;
     },
   },
 });
