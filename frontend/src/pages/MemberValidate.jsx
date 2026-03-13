@@ -19,19 +19,18 @@ export default function MemberValidate() {
     }
 
     async function loadMember() {
-      try {
-        // CORREÇÃO: Rota pública oficial conforme seu routes.js
-        const response = await axios.get(`${API_URL}/public/membro/${id}`);
-        setMember(response.data);
-      } catch (err) {
-        console.error("Erro ao validar membro:", err);
-      } finally {
-        setLoading(false);
-      }
+    try {
+      // Use a rota pública oficial que está no seu routes.js
+      const response = await api.get(`/public/membro/${id}`);
+      setMember(response.data);
+    } catch (err) {
+      console.error("Erro ao validar membro:", err);
+    } finally {
+      setLoading(false);
     }
-    loadMember();
-  }, [id]);
-
+  }
+  loadMember();
+}, [id]);
   if (loading) return (
     <div className="h-screen bg-slate-950 flex flex-col items-center justify-center text-white gap-4">
       <Loader2 className="animate-spin text-red-600" size={48} />
