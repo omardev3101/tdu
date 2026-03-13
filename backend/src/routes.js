@@ -114,10 +114,10 @@ routes.get('/admin/stats', checkRole(['DIRETOR', 'TESOUREIRO']), ContributionCon
 routes.get('/admin/membro/:id', MemberController.show); 
 routes.put('/admin/configurar-membro/:id', MemberController.updateConfig);
 
-routes.get('/members/:id', MemberController.show);
-routes.post('/members', checkRole(['DIRETOR', 'DIRETOR DE TECNOLOGIA']), upload.single('photo'), MemberController.store);
-routes.put('/members/:id', checkRole(['DIRETOR', 'DIRETOR DE TECNOLOGIA']), upload.single('photo'), MemberController.update);
-routes.delete('/members/:id', checkRole(['DIRETOR']), MemberController.delete);
+routes.get('/admin/members/:id', MemberController.show);
+routes.post('/admin/members', checkRole(['DIRETOR', 'DIRETOR DE TECNOLOGIA']), upload.single('photo'), MemberController.store);
+routes.put('/admin/members/:id', checkRole(['DIRETOR', 'DIRETOR DE TECNOLOGIA']), upload.single('photo'), MemberController.update);
+routes.delete('/admin/members/:id', checkRole(['DIRETOR']), MemberController.delete);
 
 routes.get('/contributions', checkRole(['DIRETOR', 'DIRETOR DE TECNOLOGIA', 'TESOUREIRO']), ContributionController.index);
 routes.post('/contributions/generate', checkRole(['DIRETOR', 'TESOUREIRO']), ContributionController.generateMonthly);
