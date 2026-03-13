@@ -1,12 +1,7 @@
 const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
-const { CloudinaryStorage } = require('multer-storage-cloudinary'); 
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
 require('dotenv').config();
-
-// Se o erro de "not a constructor" continuar mesmo com as chaves, 
-// o Node exige a importação direta abaixo. 
-// Vamos usar uma lógica de segurança:
-const StorageClass = CloudinaryStorage || require('multer-storage-cloudinary').CloudinaryStorage;
 
 // 1. Configuração do Cloudinary
 cloudinary.config({
@@ -15,8 +10,9 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-// 2. Configuração do Armazenamento (Usando a StorageClass que definimos acima)
-const storage = new StorageClass({
+// 2. Configuração do Armazenamento
+// Se o erro persistir, o problema é que o pacote não foi instalado corretamente no Render.
+const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
     folder: 'tdu_membros',
@@ -35,7 +31,7 @@ module.exports = {
     fileSize: 2 * 1024 * 1024,
   },
   fileFilter: (req, file, cb) => {
-    const allowedMimes = ['image/jpeg', 'image/pjpeg', 'image/png', 'image/webp'];
+    const allowedMimes = ['image/jpeg', 'image/pjpeg', 'image/png', 'image/webp', 'image/gif'];
     if (allowedMimes.includes(file.mimetype)) {
       cb(null, true);
     } else {
