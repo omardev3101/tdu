@@ -25,7 +25,7 @@ export default function Agreements() {
       setLoading(true);
       const [agreementsRes, membersRes] = await Promise.all([
         api.get('/agreements'),
-        api.get('//admin/members')
+        api.get('/admin/members')
       ]);
       setAgreements(agreementsRes.data);
       setMembersWithDebt(membersRes.data.filter(m => Number(m.balance_retroactive) > 0));

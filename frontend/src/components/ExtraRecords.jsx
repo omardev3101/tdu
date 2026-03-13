@@ -22,7 +22,7 @@ export default function ExtraRecords() {
       setLoading(true);
       const [recRes, memRes] = await Promise.all([
         api.get('/extra-records'),
-        api.get('/members')
+        api.get('/admin/members')
       ]);
       setRecords(recRes.data);
       setMembers(memRes.data);
