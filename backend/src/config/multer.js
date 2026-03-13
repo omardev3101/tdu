@@ -1,7 +1,12 @@
 const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
-const { CloudinaryStorage } = require('multer-storage-cloudinary'); // Importação desestruturada correta
+const { CloudinaryStorage } = require('multer-storage-cloudinary'); 
 require('dotenv').config();
+
+// Se o erro de "not a constructor" continuar mesmo com as chaves, 
+// o Node exige a importação direta abaixo. 
+// Vamos usar uma lógica de segurança:
+const StorageClass = CloudinaryStorage || require('multer-storage-cloudinary').CloudinaryStorage;
 
 // 1. Configuração do Cloudinary
 cloudinary.config({
@@ -10,8 +15,8 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-// 2. Configuração do Armazenamento (Corrigido)
-const storage = new CloudinaryStorage({
+// 2. Configuração do Armazenamento (Usando a StorageClass que definimos acima)
+const storage = new StorageClass({
   cloudinary: cloudinary,
   params: {
     folder: 'tdu_membros',
@@ -27,7 +32,7 @@ const storage = new CloudinaryStorage({
 module.exports = {
   storage: storage,
   limits: {
-    fileSize: 2 * 1024 * 1024, // 2MB
+    fileSize: 2 * 1024 * 1024,
   },
   fileFilter: (req, file, cb) => {
     const allowedMimes = ['image/jpeg', 'image/pjpeg', 'image/png', 'image/webp'];
