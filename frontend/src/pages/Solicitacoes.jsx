@@ -114,7 +114,7 @@ export default function MemberValidate() {
 
           <div className="mt-12 pt-6 border-t border-slate-800 w-full text-center">
             <p className="text-[9px] text-slate-600 uppercase tracking-[0.3em] font-black">
-              Templo de Umbanda Sétima Caveira
+              TDU 7 CAVEIRAS - TERREIRO DE UMBANDA
             </p>
             <p className="text-[8px] text-slate-700 mt-1 uppercase font-bold">
               Verificado em: {new Date().toLocaleString('pt-BR')}
