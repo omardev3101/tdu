@@ -22,7 +22,7 @@ const ConfigurarMembro = () => {
   useEffect(() => {
     const buscarDados = async () => {
       try {
-        const res = await api.get(`/admin/membro/${id}`);
+        const res = await api.get(`/admin/members/${id}`);
         setMembro(res.data);
       } catch (err) {
         alert("Erro ao carregar dados do membro.");
