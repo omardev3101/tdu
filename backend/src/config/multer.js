@@ -1,6 +1,6 @@
 const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
-const { CloudinaryStorage } = require('multer-storage-cloudinary');
+const { CloudinaryStorage } = require('multer-storage-cloudinary'); // Importação desestruturada correta
 require('dotenv').config();
 
 // 1. Configuração do Cloudinary
@@ -10,12 +10,12 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-// 2. Configuração do Armazenamento
+// 2. Configuração do Armazenamento (Corrigido)
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
     folder: 'tdu_membros',
-    format: async (req, file) => 'jpg', 
+    format: async (req, file) => 'jpg',
     public_id: (req, file) => {
       const hash = Date.now();
       const fileName = file.originalname.replace(/\s/g, '_').split('.')[0];
