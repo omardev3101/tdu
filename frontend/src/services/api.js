@@ -1,19 +1,19 @@
 import axios from 'axios';
 
 const api = axios.create({
-  // Use a URL do Render no .env ou o IP da sua rede local
-  baseURL: import.meta.env.VITE_API_URL || 'http://192.168.1.9:3000',
-  // REMOVIDO: 'Content-Type': 'application/json' 
+  // 1. Tenta pegar a URL do .env (VITE_API_URL)
+  // 2. Se não existir, usa a URL fixa do seu Backend no Render
+  // 3. O .replace garante que não existam barras duplas (//) no caminho
+  baseURL: (import.meta.env.VITE_API_URL || 'https://tdu-api.onrender.com').replace(/\/$/, ''),
 });
 
-api.interceptors.request.use((config) => {
+// Interceptor para injetar o token automaticamente em todas as requisições
+api.interceptors.request.use(async config => {
   const token = localStorage.getItem('@TDU:token');
   if (token) {
-    config.headers.Authorization = `Bearer ${token}`.trim();
+    config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
-}, (error) => {
-  return Promise.reject(error);
 });
 
 export default api;

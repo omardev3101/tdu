@@ -15,12 +15,13 @@ export default function DashboardHome() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  // --- FUNÇÕES DE AÇÃO (FORA DO USEEFFECT PARA TER ESCOPO GLOBAL NO COMPONENTE) ---
+  // --- FUNÇÕES DE AÇÃO ---
 
   const handleResetFinanceiro = async () => {
-    if (window.confirm("⚠️ ATENÇÃO: Deseja deletar TODAS as mensalidades para teste? Esta ação é irreversível!")) {
+    if (window.confirm("⚠️ ATENÇÃO: Deseja deletar TODAS as mensalidades? Esta ação é irreversível!")) {
       try {
-        await api.delete('/contributions/reset');
+        // CORREÇÃO: Ajustado para rota administrativa se necessário
+        await api.delete('/admin/contributions/reset');
         window.location.reload();
       } catch (err) { 
         console.error(err);
@@ -31,7 +32,8 @@ export default function DashboardHome() {
 
   const handleManualBackup = async () => {
     try {
-      const response = await api.get('/system/backup-download', { responseType: 'blob' });
+      // CORREÇÃO: Ajustado para rota administrativa
+      const response = await api.get('/admin/system/backup-download', { responseType: 'blob' });
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
@@ -58,15 +60,17 @@ export default function DashboardHome() {
   useEffect(() => {
     async function loadStats() {
       try {
+        setLoading(true);
+        // CORREÇÃO: Rotas alinhadas com o Backend (admin/members e rotas financeiras)
         const [membersRes, contributionsRes, agreementsRes] = await Promise.all([
-          api.get('admin/members'),
-          api.get('/contributions'),
-          api.get('/agreements') 
-        ]);
+  api.get('/admin/members'),      // OK
+  api.get('/contributions'),      // Verifique se o backend não exige /admin/contributions
+  api.get('/agreements')          // Verifique se o backend não exige /admin/agreements
+]);
 
-        const contributions = contributionsRes.data;
-        const members = membersRes.data;
-        const agreements = agreementsRes.data;
+        const contributions = contributionsRes.data || [];
+        const members = membersRes.data || [];
+        const agreements = agreementsRes.data || [];
 
         let pendingTotalVal = 0;
         const membersDebt = {};
@@ -80,29 +84,32 @@ export default function DashboardHome() {
           return membersDebt[name];
         };
 
+        // Processamento das Mensalidades
         contributions.forEach(c => {
           if (c.status === 'Pendente' || c.status === 'Atrasado') {
             const val = Number(c.value) || 0;
             pendingTotalVal += val;
-            const name = c.member?.full_name || 'Não Identificado';
-            const m = getMemberObj(name, c.member?.phone_whatsapp);
+            const name = c.Member?.full_name || 'Não Identificado';
+            const m = getMemberObj(name, c.Member?.phone_whatsapp);
             m.monthly += val;
             m.total += val;
             m.count += 1;
           }
         });
 
+        // Processamento dos Acordos
         agreements.forEach(a => {
             const val = Number(a.remaining_value) || 0; 
             if (val > 0) {
               pendingTotalVal += val;
-              const name = a.member?.full_name || 'Não Identificado';
-              const m = getMemberObj(name, a.member?.phone_whatsapp);
+              const name = a.Member?.full_name || 'Não Identificado';
+              const m = getMemberObj(name, a.Member?.phone_whatsapp);
               m.agreementInstallments += val;
               m.total += val;
             }
         });
 
+        // Processamento dos Retroativos dos Membros
         members.forEach(m => {
           const retroValue = Number(m.balance_retroactive) || 0;
           if (retroValue > 0) {
@@ -138,7 +145,12 @@ export default function DashboardHome() {
   const totalPages = Math.ceil(debtRanking.length / itemsPerPage);
   const currentItems = debtRanking.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  if (loading) return <div className="p-8 text-white font-black animate-pulse uppercase tracking-[0.3em]">Sincronizando Fichas...</div>;
+  if (loading) return (
+    <div className="p-20 text-center flex flex-col items-center gap-4">
+        <ShieldCheck className="animate-pulse text-red-600" size={50} />
+        <div className="text-white font-black uppercase tracking-[0.3em] text-xs">Sincronizando Dados da Corrente...</div>
+    </div>
+  );
 
   return (
     <div className="p-8 space-y-8 text-slate-200">
