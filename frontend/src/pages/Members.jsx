@@ -97,15 +97,23 @@ export default function Members() {
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-3">
                     {/* Miniatura da foto na tabela com tratamento de URL dinâmica */}
-                    <div className="w-10 h-10 rounded-lg bg-slate-800 border border-slate-700 overflow-hidden flex-shrink-0 flex items-center justify-center relative">
+<div className="w-10 h-10 rounded-lg bg-slate-800 border border-slate-700 overflow-hidden flex-shrink-0 flex items-center justify-center relative">
   {member.photo_url ? (
     <img 
-  src={`${API_URL}/uploads/${member.photo_url}`} 
-  alt="Foto" 
-/>
+      src={member.photo_url.startsWith('http') 
+        ? member.photo_url 
+        : `${API_URL}/uploads/${member.photo_url}`} 
+      alt="Foto"
+      className="w-full h-full object-cover z-10"
+      onError={(e) => {
+        // Se a imagem não for encontrada (erro 404), esconde a tag img
+        // para mostrar a letra inicial que está por baixo
+        e.target.style.display = 'none';
+      }}
+    />
   ) : null}
   
-  {/* Esta letra fica "atrás" da imagem e só aparece se a imagem não carregar */}
+  {/* Esta letra fica "atrás" da imagem e só aparece se a imagem não carregar ou não existir */}
   <span className="absolute text-slate-500 font-black uppercase text-xs">
     {member.full_name ? member.full_name.charAt(0) : '?'}
   </span>

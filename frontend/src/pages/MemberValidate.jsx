@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
 import { ShieldCheck, ShieldAlert, User, Calendar, Award } from 'lucide-react';
-
+const API_URL = import.meta.env.VITE_API_URL || 'https://tdu-api.onrender.com';
 export default function MemberValidate() {
   const { id } = useParams();
   const [member, setMember] = useState(null);
@@ -12,7 +12,7 @@ export default function MemberValidate() {
     async function loadMember() {
       try {
         // Ajuste a URL para o seu backend (3000 ou 3333)
-        const response = await axios.get(`http://localhost:3000/members/${id}`);
+        const response = await axios.get(`${API_URL}/members/${id}`);
         setMember(response.data);
       } catch (err) {
         console.error("Erro ao validar membro");
@@ -51,10 +51,9 @@ export default function MemberValidate() {
           {/* Foto do Membro */}
           <div className="w-32 h-32 rounded-2xl border-4 border-slate-800 overflow-hidden mb-6 shadow-xl">
             <img 
-              src={`http://localhost:3000/uploads/${member.photo_url}`} 
-              alt="Foto" 
-              className="w-full h-full object-cover"
-            />
+  src={`${API_URL}/uploads/${member.photo_url}`} 
+  alt="Foto" 
+/>
           </div>
 
           <h1 className="text-2xl font-black text-white text-center uppercase leading-tight mb-2">
