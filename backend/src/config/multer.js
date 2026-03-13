@@ -1,14 +1,19 @@
 const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
-const multerStorageCloudinary = require('multer-storage-cloudinary');
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
 require('dotenv').config();
 
-// O Cloudinary lê a variável CLOUDINARY_URL automaticamente do sistema,
-// mas para garantir, vamos forçar a extração da classe correta abaixo:
-
-const CloudinaryStorage = multerStorageCloudinary.CloudinaryStorage 
-  ? multerStorageCloudinary.CloudinaryStorage 
-  : multerStorageCloudinary;
+// Configuração explícita usando a URL ou as chaves individuais
+if (process.env.CLOUDINARY_URL) {
+  // O Cloudinary v2 aceita a configuração automática via URL se chamada assim:
+  cloudinary.config(); 
+} else {
+  cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET
+  });
+}
 
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
@@ -16,8 +21,8 @@ const storage = new CloudinaryStorage({
     folder: 'tdu_membros',
     format: async (req, file) => 'jpg',
     public_id: (req, file) => {
-      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-      return `membro-${uniqueSuffix}`;
+      const name = file.originalname.split('.')[0].replace(/\s+/g, '-');
+      return `membro-${Date.now()}-${name}`;
     },
   },
 });
@@ -25,7 +30,7 @@ const storage = new CloudinaryStorage({
 module.exports = {
   storage: storage,
   limits: {
-    fileSize: 5 * 1024 * 1024, // Limite de 5MB
+    fileSize: 5 * 1024 * 1024,
   },
   fileFilter: (req, file, cb) => {
     const allowedMimes = ['image/jpeg', 'image/pjpeg', 'image/png', 'image/webp'];
