@@ -6,19 +6,23 @@ import { Printer, ShieldCheck, X, MapPin } from 'lucide-react';
 // Importe o logo da sua pasta de assets
 import logoImg from '../assets/logo-tdu.png'; 
 
-// Definição das URLs dinâmicas (Ajusta automaticamente para Render ou Local)
+// Definição das URLs dinâmicas
 const API_URL = import.meta.env.VITE_API_URL || 'https://tdu-api.onrender.com';
-const FRONT_URL = window.location.origin; // Pega automaticamente a URL onde o site está rodando
+const FRONT_URL = window.location.origin;
 
-// Componente do Conteúdo (O que será impresso)
 const MemberCardContent = React.forwardRef(({ member }, ref) => {
-  // Ajuste: Agora busca a foto na URL da API (Render ou Local)
+  // 1. Limpa a URL para evitar o erro de barra dupla (ex: .com//uploads)
+  const cleanBaseUrl = API_URL.replace(/\/$/, '');
+  
+  // 2. Define a URL da foto tratando caminhos locais e links externos
   const photoUrl = member.photo_url 
-    ? `${API_URL}/uploads/${member.photo_url}` 
-    : 'https://via.placeholder.com/150';
+    ? (member.photo_url.startsWith('http') 
+        ? member.photo_url 
+        : `${cleanBaseUrl}/uploads/${member.photo_url}`)
+    : logoImg; // Se não tiver foto, usa o logo como padrão
 
-  // URL de validação para o QR Code (Aponta para o seu site atual)
-  const validationUrl = `${FRONT_URL}/validate/${member.id}`;
+  // 3. QR Code aponta para a rota pública de consulta do membro
+  const validationUrl = `${FRONT_URL}/public/membro/${member.id}`;
 
   return (
     <div 
@@ -36,7 +40,6 @@ const MemberCardContent = React.forwardRef(({ member }, ref) => {
           backgroundImage: `linear-gradient(135deg, rgba(0,0,0,0.9) 0%, rgba(20,20,20,0.8) 100%), url('https://www.transparenttextures.com/patterns/dark-leather.png')`,
         }}
       >
-        {/* Faixa Lateral Esquerda */}
         <div className="w-5 bg-red-800 h-full flex flex-col items-center py-3 space-y-1 shadow-inner">
           <div className="w-2.5 h-2.5 rounded-full bg-white shadow-md"></div>
           <div className="w-2.5 h-2.5 rounded-full bg-black shadow-md"></div>
@@ -44,7 +47,6 @@ const MemberCardContent = React.forwardRef(({ member }, ref) => {
         </div>
 
         <div className="flex-1 p-5 flex flex-col">
-          {/* Cabeçalho com Logo em Fundo Branco */}
           <div className="flex justify-between items-center mb-3 pb-2 border-b border-red-950/50">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center border-2 border-red-900 shadow-lg p-1 overflow-hidden">
@@ -58,14 +60,18 @@ const MemberCardContent = React.forwardRef(({ member }, ref) => {
             <ShieldCheck size={20} className="text-red-800 opacity-60" />
           </div>
 
-          {/* Corpo: Foto e Dados */}
           <div className="flex gap-4 mt-1">
-            <div className="w-24 h-28 bg-slate-900 rounded-xl border-2 border-slate-700 overflow-hidden shadow-lg p-0.5">
+            <div className="w-24 h-28 bg-slate-900 rounded-xl border-2 border-slate-700 overflow-hidden shadow-lg p-0.5 flex items-center justify-center">
               <img 
                 src={photoUrl} 
                 alt="Foto Membro" 
                 className="w-full h-full object-cover rounded-lg"
-                onError={(e) => { e.target.src = 'https://via.placeholder.com/150'; }} 
+                onError={(e) => { 
+                    // Se a imagem local sumir do Render, mostra o logo do TDU
+                    e.target.onerror = null;
+                    e.target.src = logoImg; 
+                    e.target.className = "w-full h-full object-contain p-2 grayscale brightness-200 opacity-20";
+                }} 
               />
             </div>
             
@@ -137,7 +143,6 @@ const MemberCardContent = React.forwardRef(({ member }, ref) => {
   );
 });
 
-// Componente Principal do Modal
 export default function MemberCard({ member, isOpen, onClose }) {
   const componentRef = useRef(null);
 
@@ -152,7 +157,6 @@ export default function MemberCard({ member, isOpen, onClose }) {
     <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-[60] p-4 transition-all duration-300">
       <div className="bg-slate-950 rounded-3xl overflow-hidden shadow-2xl max-w-lg w-full border border-slate-800">
         
-        {/* Header do Modal */}
         <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900">
           <h2 className="text-xl font-bold flex items-center gap-2 text-white font-sans">
             <Printer className="text-red-600" /> Carteirinha Digital
@@ -165,12 +169,10 @@ export default function MemberCard({ member, isOpen, onClose }) {
           </button>
         </div>
 
-        {/* Visualização da Carteirinha */}
         <div className="bg-slate-200 overflow-y-auto max-h-[65vh]">
           <MemberCardContent ref={componentRef} member={member} />
         </div>
 
-        {/* Rodapé do Modal com Botões */}
         <div className="p-6 bg-slate-900 flex gap-4 border-t border-slate-800">
           <button 
             onClick={onClose} 
