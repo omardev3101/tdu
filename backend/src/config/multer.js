@@ -1,6 +1,6 @@
 const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
-const { CloudinaryStorage } = require('multer-storage-cloudinary');
+const multerStorageCloudinary = require('multer-storage-cloudinary');
 require('dotenv').config();
 
 // 1. Configuração do Cloudinary
@@ -10,8 +10,9 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-// 2. Configuração do Armazenamento
-// Se o erro persistir, o problema é que o pacote não foi instalado corretamente no Render.
+// 2. Lógica para extrair a classe correta (Evita o erro "not a constructor")
+const CloudinaryStorage = multerStorageCloudinary.CloudinaryStorage || multerStorageCloudinary;
+
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
@@ -28,7 +29,7 @@ const storage = new CloudinaryStorage({
 module.exports = {
   storage: storage,
   limits: {
-    fileSize: 2 * 1024 * 1024,
+    fileSize: 2 * 1024 * 1024, // 2MB
   },
   fileFilter: (req, file, cb) => {
     const allowedMimes = ['image/jpeg', 'image/pjpeg', 'image/png', 'image/webp', 'image/gif'];
