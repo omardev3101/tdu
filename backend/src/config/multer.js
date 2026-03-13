@@ -1,17 +1,10 @@
 const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
-const multerStorageCloudinary = require('multer-storage-cloudinary');
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
 require('dotenv').config();
 
-// 1. Configuração do Cloudinary
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET
-});
-
-// 2. Lógica para extrair a classe correta (Evita o erro "not a constructor")
-const CloudinaryStorage = multerStorageCloudinary.CloudinaryStorage || multerStorageCloudinary;
+// O Cloudinary configura-se automaticamente se encontrar a variável CLOUDINARY_URL no sistema
+// Não é necessário chamar cloudinary.config() manualmente se a URL estiver presente.
 
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
@@ -19,9 +12,8 @@ const storage = new CloudinaryStorage({
     folder: 'tdu_membros',
     format: async (req, file) => 'jpg',
     public_id: (req, file) => {
-      const hash = Date.now();
-      const fileName = file.originalname.replace(/\s/g, '_').split('.')[0];
-      return `${hash}-${fileName}`;
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      return `membro-${uniqueSuffix}`;
     },
   },
 });
@@ -29,14 +21,14 @@ const storage = new CloudinaryStorage({
 module.exports = {
   storage: storage,
   limits: {
-    fileSize: 2 * 1024 * 1024, // 2MB
+    fileSize: 5 * 1024 * 1024, // 5MB
   },
   fileFilter: (req, file, cb) => {
-    const allowedMimes = ['image/jpeg', 'image/pjpeg', 'image/png', 'image/webp', 'image/gif'];
+    const allowedMimes = ['image/jpeg', 'image/pjpeg', 'image/png', 'image/webp'];
     if (allowedMimes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Tipo de arquivo inválido. Use JPG ou PNG.'));
+      cb(new Error('Tipo de arquivo inválido.'));
     }
   },
 };
