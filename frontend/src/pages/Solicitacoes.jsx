@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { UserCheck, UserX, Clock, ShieldCheck, Loader2 } from 'lucide-react';
+import { UserCheck, UserX, Clock, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom'; 
 import api from '../services/api'; 
 
@@ -11,7 +11,7 @@ const Solicitacoes = () => {
   const carregarPendentes = async () => {
     try {
       setLoading(true);
-      // Rota alinhada com seu routes.js
+      // Rota alinhada com seu routes.js do Backend
       const res = await api.get('/admin/solicitacoes-pendentes');
       setPendentes(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
@@ -31,7 +31,8 @@ const Solicitacoes = () => {
         // 1. Chamada ao backend para mudar status para 'Ativo'
         await api.put(`/admin/aprovar/${id}`);
         
-        // 2. Navega para a página de configuração do membro recém-aprovado
+        // 2. Navega para a página de configuração (definida no App.jsx)
+        // Certifique-se que no App.jsx a rota seja path="members/:id"
         navigate(`/dashboard/members/${id}`); 
         
       } catch (err) {
@@ -42,7 +43,7 @@ const Solicitacoes = () => {
   };
 
   const handleDescartar = async (id, nome) => {
-    if (window.confirm(`Tem certeza que deseja DESCARTAR a solicitação de ${nome}?`)) {
+    if (window.confirm(`⚠️ Tem certeza que deseja DESCARTAR permanentemente a solicitação de ${nome}?`)) {
       try {
         await api.delete(`/admin/descartar/${id}`);
         carregarPendentes();
@@ -53,7 +54,7 @@ const Solicitacoes = () => {
   };
 
   return (
-    <div className="p-8 animate-in fade-in duration-500">
+    <div className="p-8 animate-[fadeIn_0.5s_ease-out]">
       {/* HEADER */}
       <div className="mb-10 flex justify-between items-end">
         <div>
@@ -93,12 +94,12 @@ const Solicitacoes = () => {
                 <tr>
                   <td colSpan="4" className="p-24 text-center">
                     <Clock className="mx-auto mb-4 text-slate-800" size={48} />
-                    <p className="text-slate-500 font-bold uppercase text-[10px] tracking-widest">Tudo em dia. Nenhuma solicitação.</p>
+                    <p className="text-slate-500 font-bold uppercase text-[10px] tracking-widest text-center">Tudo em dia. Nenhuma solicitação pendente.</p>
                   </td>
                 </tr>
               ) : (
                 pendentes.map(membro => (
-                  <tr key={membro.id} className="hover:bg-white/[0.01] transition-colors group">
+                  <tr key={membro.id} className="hover:bg-white/[0.02] transition-colors group">
                     <td className="p-6">
                       <div className="flex flex-col">
                         <span className="font-bold text-white group-hover:text-red-500 transition-colors uppercase tracking-tight text-sm">
@@ -113,7 +114,6 @@ const Solicitacoes = () => {
                       </span>
                     </td>
                     <td className="p-6 text-center text-slate-500 text-xs tabular-nums font-medium">
-                      {/* Suporte para createdAt ou created_at */}
                       {membro.createdAt || membro.created_at 
                         ? new Date(membro.createdAt || membro.created_at).toLocaleDateString('pt-BR') 
                         : '---'}

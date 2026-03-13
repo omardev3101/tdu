@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import axios from 'axios';
+import axios from 'axios'; // Usando axios diretamente ou importe sua 'api'
 import { ShieldCheck, ShieldAlert, User, Calendar, Award, Loader2 } from 'lucide-react';
 
 // URL base configurada para evitar barra dupla
@@ -12,25 +12,27 @@ export default function MemberValidate() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // PROTEÇÃO: Não chama a API se o ID for inválido
+    // PROTEÇÃO: Não chama a API se o ID for inválido ou carregar como string 'undefined'
     if (!id || id === 'undefined') {
       setLoading(false);
       return;
     }
 
     async function loadMember() {
-    try {
-      // Use a rota pública oficial que está no seu routes.js
-      const response = await api.get(`/public/membro/${id}`);
-      setMember(response.data);
-    } catch (err) {
-      console.error("Erro ao validar membro:", err);
-    } finally {
-      setLoading(false);
+      try {
+        // CORREÇÃO: Usando axios diretamente para garantir compatibilidade com a rota pública
+        const response = await axios.get(`${API_URL}/public/membro/${id}`);
+        setMember(response.data);
+      } catch (err) {
+        console.error("Erro ao validar membro:", err);
+      } finally {
+        setLoading(false);
+      }
     }
-  }
-  loadMember();
-}, [id]);
+    
+    loadMember();
+  }, [id]);
+
   if (loading) return (
     <div className="h-screen bg-slate-950 flex flex-col items-center justify-center text-white gap-4">
       <Loader2 className="animate-spin text-red-600" size={48} />
@@ -41,24 +43,31 @@ export default function MemberValidate() {
   if (!member) return (
     <div className="h-screen bg-slate-950 flex flex-col items-center justify-center p-6 text-center">
       <ShieldAlert size={80} className="text-red-600 mb-4" />
-      <h1 className="text-2xl font-bold text-white uppercase">Membro não encontrado</h1>
-      <p className="text-slate-400 mt-2">Este QR Code é inválido ou o registro foi removido.</p>
+      <h1 className="text-2xl font-bold text-white uppercase tracking-tighter">Membro não encontrado</h1>
+      <p className="text-slate-400 mt-2">Este QR Code é inválido ou o registro foi removido da corrente.</p>
+      <button 
+        onClick={() => window.location.href = '/'}
+        className="mt-8 px-6 py-2 bg-slate-800 text-white rounded-full text-[10px] font-black uppercase tracking-widest"
+      >
+        Sair
+      </button>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-slate-950 p-6 font-sans">
-      <div className="max-w-md mx-auto bg-slate-900 rounded-3xl overflow-hidden shadow-2xl border border-slate-800">
+    <div className="min-h-screen bg-slate-950 p-6 font-sans flex items-center justify-center">
+      <div className="max-w-md w-full bg-slate-900 rounded-[40px] overflow-hidden shadow-2xl border border-slate-800 animate-in fade-in zoom-in duration-500">
         
         {/* Status Header */}
-        <div className="bg-emerald-600 p-6 text-center">
+        <div className="bg-emerald-600 p-8 text-center relative overflow-hidden">
           <ShieldCheck size={60} className="text-white mx-auto mb-2 drop-shadow-lg" />
           <h2 className="text-xl font-black text-white uppercase tracking-tighter">Membro Identificado</h2>
+          <p className="text-emerald-100 text-[10px] font-bold uppercase tracking-widest opacity-70">Portal de Validação TDU</p>
         </div>
 
         <div className="p-8 flex flex-col items-center">
           {/* Foto do Membro */}
-          <div className="w-32 h-32 rounded-2xl border-4 border-slate-800 bg-slate-800 overflow-hidden mb-6 shadow-xl relative flex items-center justify-center">
+          <div className="w-32 h-32 rounded-3xl border-4 border-slate-800 bg-slate-800 overflow-hidden mb-6 shadow-xl relative flex items-center justify-center -mt-20 z-10">
             {member.photo_url ? (
               <img 
                 src={`${API_URL}/uploads/${member.photo_url}`} 
@@ -72,44 +81,49 @@ export default function MemberValidate() {
             </span>
           </div>
 
-          <h1 className="text-2xl font-black text-white text-center uppercase leading-tight mb-2">
+          <h1 className="text-2xl font-black text-white text-center uppercase leading-tight mb-2 tracking-tighter">
             {member.full_name}
           </h1>
-          <span className="px-4 py-1 bg-red-950/50 text-red-500 rounded-full text-sm font-bold uppercase border border-red-900/50">
+          <span className="px-5 py-1.5 bg-red-950/50 text-red-500 rounded-full text-[10px] font-black uppercase border border-red-900/30 tracking-widest">
             {member.category}
           </span>
 
-          <div className="w-full mt-8 space-y-4">
-            <div className="flex items-center gap-4 bg-slate-800/40 p-4 rounded-2xl border border-slate-700/50">
+          <div className="w-full mt-10 space-y-4">
+            <div className="flex items-center gap-4 bg-slate-800/40 p-5 rounded-3xl border border-slate-700/50 shadow-inner">
               <Award className="text-red-600" size={24} />
               <div>
-                <p className="text-[10px] text-slate-500 uppercase font-bold">Matrícula</p>
-                <p className="text-white font-mono font-bold">#{String(member.id).padStart(4, '0')}</p>
+                <p className="text-[10px] text-slate-500 uppercase font-black tracking-widest">Matrícula</p>
+                <p className="text-white font-mono font-bold text-lg">#{String(member.id).padStart(4, '0')}</p>
               </div>
             </div>
 
-            <div className="flex items-center gap-4 bg-slate-800/40 p-4 rounded-2xl border border-slate-700/50">
+            <div className="flex items-center gap-4 bg-slate-800/40 p-5 rounded-3xl border border-slate-700/50 shadow-inner">
               <Calendar className="text-red-600" size={24} />
               <div>
-                <p className="text-[10px] text-slate-500 uppercase font-bold">Data de Batismo</p>
-                <p className="text-white font-bold">
+                <p className="text-[10px] text-slate-500 uppercase font-black tracking-widest">Data de Batismo</p>
+                <p className="text-white font-bold text-lg">
                   {member.baptism_date ? new Date(member.baptism_date).toLocaleDateString('pt-BR') : 'Não informada'}
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-4 bg-slate-800/40 p-4 rounded-2xl border border-slate-700/50">
+            <div className="flex items-center gap-4 bg-slate-800/40 p-5 rounded-3xl border border-slate-700/50 shadow-inner">
               <User className="text-red-600" size={24} />
               <div>
-                <p className="text-[10px] text-slate-500 uppercase font-bold">Situação Religiosa</p>
-                <p className="text-emerald-500 font-black uppercase">Regularizado</p>
+                <p className="text-[10px] text-slate-500 uppercase font-black tracking-widest">Vínculo Religioso</p>
+                <p className="text-emerald-500 font-black uppercase text-lg tracking-tighter">Ativo e Regularizado</p>
               </div>
             </div>
           </div>
 
-          <p className="mt-10 text-[10px] text-slate-600 text-center uppercase tracking-widest font-bold">
-            TDU - 7 Caveiras • {new Date().toLocaleDateString()}
-          </p>
+          <div className="mt-12 text-center border-t border-slate-800 pt-6 w-full">
+            <p className="text-[9px] text-slate-600 uppercase tracking-[0.4em] font-black">
+              TDU - 7 Caveiras
+            </p>
+            <p className="text-[8px] text-slate-700 mt-1 uppercase font-bold">
+              Autenticado em: {new Date().toLocaleString('pt-BR')}
+            </p>
+          </div>
         </div>
       </div>
     </div>

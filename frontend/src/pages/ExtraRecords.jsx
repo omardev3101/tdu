@@ -1,16 +1,15 @@
 import { useEffect, useState } from 'react';
-import { Heart, Hammer, Plus, Users, Check, X, Info, Search } from 'lucide-react';
+import { Heart, Hammer, Plus, Users, Check, X, Info, Search, Loader2 } from 'lucide-react';
 import api from '../services/api';
 
 export default function ExtraRecords() {
-  const [activeTab, setActiveTab] = useState('Doação'); // 'Doação' ou 'Trabalho Extra'
+  const [activeTab, setActiveTab] = useState('Doação'); 
   const [records, setRecords] = useState([]);
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   
-  // Estados do Formulário
   const [selectedMembers, setSelectedMembers] = useState([]);
   const [formData, setFormData] = useState({
     description: '',
@@ -20,12 +19,13 @@ export default function ExtraRecords() {
 
   const loadData = async () => {
     try {
-        const [recRes, memRes] = await Promise.all([
+      setLoading(true);
+      const [recRes, memRes] = await Promise.all([
         api.get('/extra-records'),
         api.get('/admin/members')
       ]);
-      setRecords(recRes.data);
-      setMembers(memRes.data);
+      setRecords(recRes.data || []);
+      setMembers(memRes.data || []);
     } catch (err) {
       console.error("Erro ao carregar dados:", err);
     } finally {
@@ -36,13 +36,12 @@ export default function ExtraRecords() {
   useEffect(() => { loadData(); }, []);
 
   const handleSelectAll = () => {
-  if (selectedMembers.length === members.length) {
-    setSelectedMembers([]);
-  } else {
-    // Mapeia garantindo que todos os IDs sejam Numbers
-    setSelectedMembers(members.map(m => Number(m.id)));
-  }
-};
+    if (selectedMembers.length === members.length) {
+      setSelectedMembers([]);
+    } else {
+      setSelectedMembers(members.map(m => Number(m.id)));
+    }
+  };
 
   const toggleMember = (id) => {
     const targetId = Number(id);
@@ -53,24 +52,33 @@ export default function ExtraRecords() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (selectedMembers.length === 0) return alert("Selecione ao menos um membro.");
+    if (selectedMembers.length === 0) return alert("Selecione ao menos um membro participante.");
 
     try {
-      await api.post('/extra-records', { 
-        ...formData, 
+      // Conversão explícita para número decimal
+      const dataToSend = {
+        ...formData,
+        value: parseFloat(formData.value),
         type: activeTab,
         memberIds: selectedMembers 
-      });
+      };
+
+      await api.post('/extra-records', dataToSend);
+      
       setShowModal(false);
       setSelectedMembers([]);
-      setFormData({ ...formData, description: '', value: '' });
+      setFormData({ 
+        description: '', 
+        value: '', 
+        date: new Date().toISOString().split('T')[0] 
+      });
       loadData();
+      alert("Registro salvo com sucesso! Axé.");
     } catch (err) {
-      alert("Erro ao salvar registro.");
+      alert(err.response?.data?.error || "Erro ao salvar registro.");
     }
   };
 
-  // Filtros
   const filteredRecords = records.filter(r => 
     r.type === activeTab && 
     (r.description.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -132,7 +140,13 @@ export default function ExtraRecords() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/50">
-              {filteredRecords.map(r => (
+              {loading ? (
+                <tr>
+                    <td colSpan="4" className="p-20 text-center">
+                        <Loader2 className="animate-spin text-red-600 mx-auto" size={40} />
+                    </td>
+                </tr>
+              ) : filteredRecords.map(r => (
                 <tr key={r.id} className="hover:bg-slate-800/40 transition-colors group">
                   <td className="p-6">
                     {r.participants?.length > 1 ? (
@@ -166,7 +180,7 @@ export default function ExtraRecords() {
               ))}
             </tbody>
           </table>
-          {filteredRecords.length === 0 && (
+          {!loading && filteredRecords.length === 0 && (
             <div className="p-24 text-center text-slate-700 font-black uppercase text-[10px] tracking-[0.4em]">Sem registros encontrados</div>
           )}
         </div>
@@ -174,8 +188,8 @@ export default function ExtraRecords() {
 
       {/* MODAL DE CADASTRO */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/95 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-in fade-in duration-300">
-          <div className="bg-slate-900 border border-slate-800 p-8 rounded-[40px] w-full max-w-lg shadow-2xl">
+        <div className="fixed inset-0 bg-black/95 backdrop-blur-md flex items-center justify-center p-4 z-50">
+          <div className="bg-slate-900 border border-slate-800 p-8 rounded-[40px] w-full max-w-lg shadow-2xl animate-in zoom-in-95 duration-200">
             <div className="flex justify-between items-center mb-8">
               <h2 className="text-2xl font-black text-white uppercase italic tracking-tighter">Registrar {activeTab}</h2>
               <button onClick={() => setShowModal(false)} className="text-slate-600 hover:text-white transition-colors"><X size={24}/></button>
@@ -189,36 +203,35 @@ export default function ExtraRecords() {
                     {selectedMembers.length === members.length ? 'Limpar' : 'Todos'}
                   </button>
                 </div>
-                <div className="bg-black/40 border border-slate-800 rounded-2xl p-4 max-h-48 overflow-y-auto grid grid-cols-1 gap-2">
-  {members.map(m => {
-    const isSelected = selectedMembers.includes(Number(m.id));
-    return (
-      <div 
-        key={m.id} 
-        onClick={() => toggleMember(m.id)}
-        className={`flex items-center justify-between p-3 rounded-xl cursor-pointer select-none transition-all ${
-          isSelected 
-            ? 'bg-red-600/10 border-red-600/30 border' 
-            : 'hover:bg-slate-800 border border-transparent'
-        }`}
-      >
-        <span className={`text-[11px] font-black uppercase ${
-          isSelected ? 'text-white' : 'text-slate-600'
-        }`}>
-          {m.full_name}
-        </span>
-        {isSelected && <Check size={14} className="text-red-500" />}
-      </div>
-    );
-  })}
-</div>
+                <div className="bg-black/40 border border-slate-800 rounded-2xl p-4 max-h-48 overflow-y-auto grid grid-cols-1 gap-2 custom-scrollbar">
+                  {members.map(m => {
+                    const isSelected = selectedMembers.includes(Number(m.id));
+                    return (
+                      <div 
+                        key={m.id} 
+                        onClick={() => toggleMember(m.id)}
+                        className={`flex items-center justify-between p-3 rounded-xl cursor-pointer select-none transition-all ${
+                          isSelected 
+                            ? 'bg-red-600/10 border-red-600/30 border' 
+                            : 'hover:bg-slate-800 border border-transparent'
+                        }`}
+                      >
+                        <span className={`text-[11px] font-black uppercase ${isSelected ? 'text-white' : 'text-slate-600'}`}>
+                          {m.full_name}
+                        </span>
+                        {isSelected && <Check size={14} className="text-red-500" />}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
 
               <div>
                 <label className="text-[10px] font-black text-slate-500 uppercase mb-2 block tracking-widest">Descrição</label>
                 <input 
                   className="w-full bg-black/40 border border-slate-800 p-4 rounded-2xl text-white font-bold text-xs uppercase focus:border-red-600 outline-none transition-all"
-                  placeholder="EX: DOAÇÃO SEDE / REFORMA PORTÃO"
+                  placeholder="EX: REFORMA DA CURIMBA / DOAÇÃO CESTAS"
+                  value={formData.description}
                   onChange={e => setFormData({...formData, description: e.target.value})}
                   required
                 />
@@ -230,6 +243,7 @@ export default function ExtraRecords() {
                   <input 
                     type="number" step="0.01"
                     className="w-full bg-black/40 border border-slate-800 p-4 rounded-2xl text-emerald-500 font-mono font-black text-xl outline-none"
+                    value={formData.value}
                     onChange={e => setFormData({...formData, value: e.target.value})}
                     required
                   />
@@ -247,7 +261,7 @@ export default function ExtraRecords() {
               </div>
 
               <button type="submit" className={`w-full p-5 rounded-2xl font-black text-xs uppercase transition-all shadow-2xl active:scale-[0.98] ${activeTab === 'Doação' ? 'bg-red-700 text-white hover:bg-red-600' : 'bg-amber-600 text-white hover:bg-amber-500'}`}>
-                Confirmar {activeTab}
+                Confirmar Registro
               </button>
             </form>
           </div>

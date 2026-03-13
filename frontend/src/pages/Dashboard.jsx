@@ -11,30 +11,38 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const location = useLocation();
   const [pendingRequests, setPendingRequests] = useState(0);
-  const [pendingAgreements, setPendingAgreements] = useState(0); // Novo estado
-  const user = JSON.parse(localStorage.getItem('@TDU:user'));
+  const [pendingAgreements, setPendingAgreements] = useState(0);
+  
+  // Proteção para o parse do usuário
+  const user = JSON.parse(localStorage.getItem('@TDU:user') || '{}');
 
-  // Função centralizada de busca de notificações
+  // Função centralizada de busca de notificações (Badges)
   async function fetchBadges() {
+    // Se não houver token, nem tenta buscar para evitar erros 401 no console
+    if (!localStorage.getItem('@TDU:token')) return;
+
     try {
       const [requestsRes, agreementsRes] = await Promise.all([
         api.get('/admin/solicitacoes-pendentes'),
-        api.get('/agreements') // Buscamos todos os acordos
+        api.get('/agreements') 
       ]);
       
-      setPendingRequests(requestsRes.data.length);
+      if (requestsRes.data) setPendingRequests(requestsRes.data.length);
       
-      // Filtramos apenas os que não foram aceitos (termsAccepted: false)
-      const pendingTerms = agreementsRes.data.filter(a => !a.termsAccepted).length;
-      setPendingAgreements(pendingTerms);
+      if (agreementsRes.data) {
+        // Filtramos apenas os que não foram aceitos (termsAccepted: false ou 0)
+        const pendingTerms = agreementsRes.data.filter(a => !a.termsAccepted).length;
+        setPendingAgreements(pendingTerms);
+      }
       
     } catch (err) {
-      console.error("Erro ao buscar contadores", err);
+      console.error("Erro ao sincronizar badges:", err.message);
     }
   }
 
   useEffect(() => {
     fetchBadges();
+    // Atualiza os contadores a cada 30 segundos
     const interval = setInterval(fetchBadges, 30000); 
     return () => clearInterval(interval);
   }, []);
@@ -54,19 +62,17 @@ export default function Dashboard() {
       {/* Sidebar */}
       <aside className="w-64 bg-slate-900 border-r border-slate-800 p-6 hidden md:flex flex-col">
         <div className="mb-10 text-center">
-          <div className="mb-2">
-  <div className="mb-2">
-  <div className="w-20 h-20 mx-auto bg-white rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(220,38,38,0.2)]">
-    <img 
-      src={logo} 
-      alt="Logo TDU" 
-      className="w-16 h-16 object-contain" 
-    />
-  </div>
-</div>
-</div>
-          <h2 className="text-2xl font-black text-red-600 tracking-tighter italic">7 CAVEIRAS</h2>
-          <p className="text-[10px] text-slate-500 uppercase tracking-[0.2em] font-bold">Gestão de Terreiro</p>
+          <div className="mb-4">
+            <div className="w-20 h-20 mx-auto bg-white rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(220,38,38,0.2)] p-2">
+              <img 
+                src={logo} 
+                alt="Logo TDU" 
+                className="w-full h-full object-contain" 
+              />
+            </div>
+          </div>
+          <h2 className="text-2xl font-black text-red-600 tracking-tighter italic leading-none">7 CAVEIRAS</h2>
+          <p className="text-[10px] text-slate-500 uppercase tracking-[0.2em] font-bold mt-2">Gestão de Terreiro</p>
         </div>
 
         <nav className="space-y-2 flex-1 overflow-y-auto pr-2 custom-scrollbar">
@@ -74,13 +80,13 @@ export default function Dashboard() {
             <LayoutDashboard size={18} /> Início
           </Link>
 
-          {/* SOLICITAÇÕES */}
+          {/* SOLICITAÇÕES COM CONTADOR */}
           <Link to="/dashboard/solicitacoes" className={`flex items-center justify-between p-3 rounded-xl transition-all font-bold text-xs uppercase tracking-widest ${activeClass('/dashboard/solicitacoes')}`}>
             <div className="flex items-center gap-3">
               <UserPlus size={18} /> Solicitações
             </div>
             {pendingRequests > 0 && (
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[10px] font-black text-white shadow-lg shadow-red-900/40 animate-pulse">
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[10px] font-black text-white animate-pulse">
                 {pendingRequests}
               </span>
             )}
@@ -94,13 +100,13 @@ export default function Dashboard() {
             <DollarSign size={18} /> Financeiro
           </Link>
 
-          {/* ACORDOS COM BADGE DE TERMOS PENDENTES */}
+          {/* ACORDOS COM CONTADOR */}
           <Link to="/dashboard/agreements" className={`flex items-center justify-between p-3 rounded-xl transition-all font-bold text-xs uppercase tracking-widest ${activeClass('/dashboard/agreements')}`}>
             <div className="flex items-center gap-3">
               <Handshake size={18} /> Acordos
             </div>
             {pendingAgreements > 0 && (
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-[10px] font-black text-white shadow-lg shadow-emerald-900/40">
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-[10px] font-black text-white">
                 {pendingAgreements}
               </span>
             )}
@@ -124,23 +130,23 @@ export default function Dashboard() {
         </button>
       </aside>
 
-      {/* Conteúdo Principal (sem alterações aqui para manter a lógica do Outlet) */}
+      {/* Conteúdo Principal */}
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
         <header className="px-8 py-4 border-b border-slate-800 bg-slate-900/30 backdrop-blur-md flex justify-between items-center">
           <div className="flex flex-col">
             <span className="text-[9px] text-slate-500 uppercase tracking-[0.3em] font-black">Admin Panel v2.6</span>
             <span className="text-sm font-medium text-slate-300 italic">
-              Axé, <b className="text-white not-italic">{user?.name}</b>
+              Axé, <b className="text-white not-italic">{user?.full_name || user?.name || 'Irmão'}</b>
             </span>
           </div>
           
           <div className="flex items-center gap-4">
             <div className="text-right hidden sm:block">
-              <p className="text-[10px] font-black text-red-500 uppercase tracking-tighter">{user?.role}</p>
+              <p className="text-[10px] font-black text-red-500 uppercase tracking-tighter">{user?.role || 'Acesso'}</p>
               <p className="text-[9px] text-slate-600 font-bold tracking-widest">TDU7C-2026</p>
             </div>
             <div className="w-10 h-10 bg-gradient-to-br from-red-600 to-red-950 rounded-xl flex items-center justify-center shadow-2xl shadow-red-900/20 text-white font-black italic border border-red-500/20">
-              {user?.name?.charAt(0)}
+              {(user?.full_name || user?.name || 'T').charAt(0)}
             </div>
           </div>
         </header>
