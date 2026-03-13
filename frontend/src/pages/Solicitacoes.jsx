@@ -60,16 +60,22 @@ export default function MemberValidate() {
           <p className="text-emerald-100 text-[10px] uppercase font-bold tracking-widest opacity-80">Identidade Digital TDU</p>
         </div>
 
-        <div className="p-8 flex flex-col items-center">
-          {/* Foto do Membro - Agora carregando do Render */}
-          <div className="w-40 h-40 rounded-3xl border-4 border-slate-800 overflow-hidden mb-6 shadow-2xl bg-slate-800">
-            <img 
-              src={`${API_URL}/uploads/${member.photo_url}`} 
-              alt="Foto do Membro" 
-              className="w-full h-full object-cover"
-              onError={(e) => e.target.src = 'https://via.placeholder.com/150?text=TDU'}
-            />
-          </div>
+        <div className="w-10 h-10 rounded-lg bg-slate-800 border border-slate-700 overflow-hidden flex-shrink-0 flex items-center justify-center relative">
+  {member.photo_url ? (
+    <img 
+      src={member.photo_url.startsWith('http') ? member.photo_url : `${API_URL}/uploads/${member.photo_url}`} 
+      className="w-full h-full object-cover z-10"
+      alt=""
+      // Se a imagem falhar, escondemos ela para mostrar a inicial que está atrás
+      onError={(e) => { e.target.style.display = 'none'; }} 
+    />
+  ) : null}
+  
+  {/* Esta letra fica "atrás" da imagem e só aparece se a imagem não carregar */}
+  <span className="absolute text-slate-500 font-black uppercase text-xs">
+    {member.full_name ? member.full_name.charAt(0) : '?'}
+  </span>
+</div>
 
           <h1 className="text-2xl font-black text-white text-center uppercase leading-tight mb-2 tracking-tighter">
             {member.full_name}
