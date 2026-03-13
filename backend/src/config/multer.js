@@ -1,10 +1,14 @@
 const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
-const { CloudinaryStorage } = require('multer-storage-cloudinary');
+const multerStorageCloudinary = require('multer-storage-cloudinary');
 require('dotenv').config();
 
-// O Cloudinary configura-se automaticamente se encontrar a variável CLOUDINARY_URL no sistema
-// Não é necessário chamar cloudinary.config() manualmente se a URL estiver presente.
+// O Cloudinary lê a variável CLOUDINARY_URL automaticamente do sistema,
+// mas para garantir, vamos forçar a extração da classe correta abaixo:
+
+const CloudinaryStorage = multerStorageCloudinary.CloudinaryStorage 
+  ? multerStorageCloudinary.CloudinaryStorage 
+  : multerStorageCloudinary;
 
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
@@ -21,7 +25,7 @@ const storage = new CloudinaryStorage({
 module.exports = {
   storage: storage,
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB
+    fileSize: 5 * 1024 * 1024, // Limite de 5MB
   },
   fileFilter: (req, file, cb) => {
     const allowedMimes = ['image/jpeg', 'image/pjpeg', 'image/png', 'image/webp'];
