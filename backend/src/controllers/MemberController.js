@@ -35,6 +35,13 @@ module.exports = {
         data.is_voter = (data.is_voter === 'true' || data.is_voter === '1' || data.is_voter === true) ? 1 : 0;
       }
 
+      // Exemplo de lógica para adicionar no Store
+const emailExists = await Member.findOne({ where: { email: req.body.email } });
+
+if (emailExists) {
+  return res.status(400).json({ error: "Este e-mail já está cadastrado em nossa corrente." });
+}
+
       // Limpeza de máscaras
       if (data.document_cpf) data.document_cpf = data.document_cpf.replace(/\D/g, '');
       if (data.address_zip) data.address_zip = data.address_zip.replace(/\D/g, '');
