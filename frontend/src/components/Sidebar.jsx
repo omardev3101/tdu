@@ -20,8 +20,11 @@ export default function Sidebar() {
   ];
 
   const handleLogout = () => {
-    localStorage.removeItem('@TDU:token');
+    // Limpa tudo para evitar conflitos de login futuro
+    localStorage.clear(); 
     navigate('/');
+    // Opcional: Recarregar a página para limpar estados do React
+    window.location.reload(); 
   };
 
   return (

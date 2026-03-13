@@ -23,7 +23,7 @@ const MemberCardContent = React.forwardRef(({ member }, ref) => {
     : `https://placehold.co/150x180/1e293b/white?text=${member.full_name ? member.full_name.charAt(0) : 'TDU'}`;
 
   // 3. QR Code aponta para a rota pública de consulta do membro (Validação)
-  const validationUrl = `${FRONT_URL}/public/membro/${member.id}`;
+  const validationUrl = `${FRONT_URL}/validar/${member.id}`;
 
   return (
     <div 

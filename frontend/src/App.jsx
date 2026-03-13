@@ -31,8 +31,7 @@ function App() {
         <Route path="/solicitacao" element={<FormSolicitacao />} />
         
         {/* Validação rápida / QR Code */}
-        <Route path="/validar" element={<MemberValidate />} />
-
+        <Route path="/validar/:id" element={<MemberValidate />} />
         {/* --- ROTAS PRIVADAS (Dashboard) --- */}
         <Route 
           path="/dashboard" 
