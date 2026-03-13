@@ -20,8 +20,7 @@ export default function DashboardHome() {
   const handleResetFinanceiro = async () => {
     if (window.confirm("⚠️ ATENÇÃO: Deseja deletar TODAS as mensalidades? Esta ação é irreversível!")) {
       try {
-        // CORREÇÃO: Ajustado para rota administrativa se necessário
-        await api.delete('/admin/contributions/reset');
+        await api.delete('/contributions/reset');
         window.location.reload();
       } catch (err) { 
         console.error(err);
@@ -32,8 +31,7 @@ export default function DashboardHome() {
 
   const handleManualBackup = async () => {
     try {
-      // CORREÇÃO: Ajustado para rota administrativa
-      const response = await api.get('/admin/system/backup-download', { responseType: 'blob' });
+      const response = await api.get('/system/backup-download', { responseType: 'blob' });
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
@@ -61,12 +59,12 @@ export default function DashboardHome() {
     async function loadStats() {
       try {
         setLoading(true);
-        // CORREÇÃO: Rotas alinhadas com o Backend (admin/members e rotas financeiras)
+        // CORREÇÃO: Alinhando rotas com o Backend (/admin/)
         const [membersRes, contributionsRes, agreementsRes] = await Promise.all([
-  api.get('/admin/members'),      // OK
-  api.get('/contributions'),      // Verifique se o backend não exige /admin/contributions
-  api.get('/agreements')          // Verifique se o backend não exige /admin/agreements
-]);
+          api.get('/admin/members'),
+          api.get('/contributions'), // Esta rota no seu routes.js já exige auth
+          api.get('/agreements')     // Esta rota no seu routes.js já exige auth
+        ]);
 
         const contributions = contributionsRes.data || [];
         const members = membersRes.data || [];
@@ -89,8 +87,10 @@ export default function DashboardHome() {
           if (c.status === 'Pendente' || c.status === 'Atrasado') {
             const val = Number(c.value) || 0;
             pendingTotalVal += val;
-            const name = c.Member?.full_name || 'Não Identificado';
-            const m = getMemberObj(name, c.Member?.phone_whatsapp);
+            // Proteção: Tenta pegar Member (Sequelize) ou member (JSON comum)
+            const memberData = c.Member || c.member;
+            const name = memberData?.full_name || 'Não Identificado';
+            const m = getMemberObj(name, memberData?.phone_whatsapp);
             m.monthly += val;
             m.total += val;
             m.count += 1;
@@ -102,8 +102,9 @@ export default function DashboardHome() {
             const val = Number(a.remaining_value) || 0; 
             if (val > 0) {
               pendingTotalVal += val;
-              const name = a.Member?.full_name || 'Não Identificado';
-              const m = getMemberObj(name, a.Member?.phone_whatsapp);
+              const memberData = a.Member || a.member;
+              const name = memberData?.full_name || 'Não Identificado';
+              const m = getMemberObj(name, memberData?.phone_whatsapp);
               m.agreementInstallments += val;
               m.total += val;
             }
@@ -147,8 +148,8 @@ export default function DashboardHome() {
 
   if (loading) return (
     <div className="p-20 text-center flex flex-col items-center gap-4">
-        <ShieldCheck className="animate-pulse text-red-600" size={50} />
-        <div className="text-white font-black uppercase tracking-[0.3em] text-xs">Sincronizando Dados da Corrente...</div>
+        <ShieldCheck className="animate-spin text-red-600" size={50} />
+        <div className="text-white font-black uppercase tracking-[0.3em] text-xs">Sincronizando Fichas...</div>
     </div>
   );
 
