@@ -100,12 +100,9 @@ export default function Members() {
                     <div className="w-10 h-10 rounded-lg bg-slate-800 border border-slate-700 overflow-hidden flex-shrink-0 flex items-center justify-center relative">
   {member.photo_url ? (
     <img 
-      src={member.photo_url.startsWith('http') ? member.photo_url : `${API_URL}/uploads/${member.photo_url}`} 
-      className="w-full h-full object-cover z-10"
-      alt=""
-      // Se a imagem falhar, escondemos ela para mostrar a inicial que está atrás
-      onError={(e) => { e.target.style.display = 'none'; }} 
-    />
+  src={`${API_URL}/uploads/${member.photo_url}`} 
+  alt="Foto" 
+/>
   ) : null}
   
   {/* Esta letra fica "atrás" da imagem e só aparece se a imagem não carregar */}

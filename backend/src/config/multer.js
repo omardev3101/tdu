@@ -1,42 +1,36 @@
 const multer = require('multer');
-const cloudinary = require('cloudinary').v2;
-const multerStorageCloudinary = require('multer-storage-cloudinary');
-require('dotenv').config();
+const path = require('path');
+const crypto = require('crypto');
+const fs = require('fs');
 
-// Configuração Manual Robusta para o Render
-// Se a URL do Cloudinary não for detectada, ele usa as chaves individuais
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_NAME || 'dt4lipgxt',
-  api_key: process.env.CLOUDINARY_API_KEY || '871267352253446',
-  api_secret: process.env.CLOUDINARY_API_SECRET || 'tqmdnrui8NrRDaqXsoG6TnyWWWE'
-});
-
-// Garante que o construtor seja carregado corretamente
-const CloudinaryStorage = multerStorageCloudinary.CloudinaryStorage || multerStorageCloudinary;
-
-const storage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  params: {
-    folder: 'tdu_membros',
-    format: async (req, file) => 'jpg',
-    public_id: (req, file) => {
-      const timestamp = Date.now();
-      return `membro-${timestamp}`;
-    },
-  },
-});
+// Garante que a pasta uploads existe
+const uploadDir = path.resolve(__dirname, '..', '..', 'uploads');
+if (!fs.existsSync(uploadDir)){
+    fs.mkdirSync(uploadDir, { recursive: true });
+}
 
 module.exports = {
-  storage: storage,
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      cb(null, uploadDir);
+    },
+    filename: (req, file, cb) => {
+      crypto.randomBytes(16, (err, hash) => {
+        if (err) cb(err);
+        const fileName = `${hash.toString('hex')}-${file.originalname}`;
+        cb(null, fileName);
+      });
+    },
+  }),
   limits: {
-    fileSize: 5 * 1024 * 1024,
+    fileSize: 2 * 1024 * 1024, // 2MB
   },
   fileFilter: (req, file, cb) => {
-    const allowedMimes = ['image/jpeg', 'image/pjpeg', 'image/png', 'image/webp'];
+    const allowedMimes = ['image/jpeg', 'image/pjpeg', 'image/png', 'image/gif'];
     if (allowedMimes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Tipo de arquivo inválido.'));
+      cb(new Error('Tipo de arquivo inválido. Use JPG ou PNG.'));
     }
   },
 };
