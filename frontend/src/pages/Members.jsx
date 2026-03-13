@@ -21,16 +21,18 @@ export default function Members() {
   }, []);
 
   async function loadMembers() {
-    try {
-      setLoading(true);
-      const response = await api.get('/admin/members'); // Ajustado para sua rota protegida
-      setMembers(response.data);
-    } catch (error) {
-      console.error("Erro ao carregar membros:", error);
-    } finally {
-      setLoading(false);
-    }
+  try {
+    setLoading(true);
+    setMembers([]); // Limpa a lista antes de carregar a nova
+    const response = await api.get('/admin/members');
+    console.log("Membros recebidos:", response.data); // Verifique isso no console!
+    setMembers(response.data);
+  } catch (error) {
+    console.error("Erro ao carregar membros:", error);
+  } finally {
+    setLoading(false);
   }
+}
 
   // Abre modal para criação
   function handleAddMember() {
@@ -102,19 +104,19 @@ export default function Members() {
     <img 
       src={member.photo_url.startsWith('http') 
         ? member.photo_url 
-        : `${API_URL}/uploads/${member.photo_url}`} 
+        : `${API_URL.replace(/\/$/, '')}/uploads/${member.photo_url}`} 
       alt="Foto"
-      className="w-full h-full object-cover z-10"
+      className="w-full h-full object-cover z-10 relative"
       onError={(e) => {
-        // Se a imagem não for encontrada (erro 404), esconde a tag img
-        // para mostrar a letra inicial que está por baixo
+        // Se der 404, removemos a imagem para mostrar a letra inicial
+        e.target.onerror = null; 
         e.target.style.display = 'none';
       }}
     />
   ) : null}
   
-  {/* Esta letra fica "atrás" da imagem e só aparece se a imagem não carregar ou não existir */}
-  <span className="absolute text-slate-500 font-black uppercase text-xs">
+  {/* Letra inicial (Fallback) - Fica sempre atrás ou aparece se a foto falhar */}
+  <span className="absolute inset-0 flex items-center justify-center text-slate-500 font-black uppercase text-sm bg-slate-800">
     {member.full_name ? member.full_name.charAt(0) : '?'}
   </span>
 </div>
