@@ -23,7 +23,7 @@ export default function Members() {
   async function loadMembers() {
     try {
       setLoading(true);
-      const response = await api.get('/admin/membros'); // Ajustado para sua rota protegida
+      const response = await api.get('/admin/members'); // Ajustado para sua rota protegida
       setMembers(response.data);
     } catch (error) {
       console.error("Erro ao carregar membros:", error);
@@ -52,7 +52,7 @@ export default function Members() {
   async function handleDelete(id) {
     if (window.confirm('Deseja realmente excluir este membro do TDU?')) {
       try {
-        await api.delete(`/admin/membro/${id}`);
+        await api.delete(`/admin/members/${id}`);
         loadMembers();
       } catch (error) {
         alert("Erro ao excluir membro.");
