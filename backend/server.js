@@ -47,7 +47,8 @@ async function run() {
     console.log('✅ Conexão MySQL Banco Externo: OK');
 
     // Em produção, "alter: true" é seguro, mas cuidado com dados críticos.
-    await sequelize.sync({ alter: true });
+    const isDev = process.env.NODE_ENV === 'development';
+await sequelize.sync({ alter: isDev });
     console.log('✅ Sincronização de Tabelas: OK');
 
     // ESCUTA EM 0.0.0.0 PARA DOCKER/RENDER

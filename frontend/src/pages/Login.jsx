@@ -86,7 +86,7 @@ export default function Login() {
             type="submit"
             className="w-full bg-red-700 hover:bg-red-600 text-white font-black py-4 rounded-xl transition-all shadow-lg active:scale-95 uppercase tracking-widest text-sm"
           >
-            Entrar no Terreiro
+            Entrar no TDU 7 Caveiras
           </button>
         </form>
         

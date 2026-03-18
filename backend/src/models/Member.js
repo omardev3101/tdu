@@ -15,11 +15,10 @@ const Member = sequelize.define('Member', {
     type: DataTypes.STRING(50),
     defaultValue: 'Não Informado'
   },
-  document_cpf: { 
-    type: DataTypes.STRING(14), 
-    unique: true,
-    allowNull: true
-  },
+  document_cpf: {
+  type: Sequelize.STRING(14),
+  unique: 'compositeIndex' // Dando um nome fixo ao índice
+},
   document_rg: { 
     type: DataTypes.STRING(20),
     allowNull: true
