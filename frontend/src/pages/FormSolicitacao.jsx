@@ -78,40 +78,44 @@ const FormSolicitacao = () => {
     }
   };
 
-  const ligarCamera = async () => {
-    setFotoCapturada(null);
-    setCameraAtiva(true);
-    
-    // Configurações otimizadas para mobile e desktop
-    const constraints = {
-      video: {
-        facingMode: "user",
-        width: { ideal: 640 },
-        height: { ideal: 480 }
-      },
-      audio: false // Garante que não peça áudio, o que facilita a permissão
-    };
-
-    try {
-      // Pequeno delay para garantir que o elemento videoRef já esteja no DOM
-      setTimeout(async () => {
-        const stream = await navigator.mediaDevices.getUserMedia(constraints);
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          // Força o play para garantir que o vídeo inicie
-          videoRef.current.play().catch(e => console.error("Erro ao dar play no vídeo:", e));
-        }
-      }, 300);
-    } catch (err) {
-      console.error("Erro na câmera:", err);
-      let mensagem = "Não foi possível acessar a câmera.";
-      if (err.name === 'NotAllowedError') mensagem = "Permissão de câmera negada. Por favor, autorize nas configurações do seu navegador.";
-      if (err.name === 'NotFoundError') mensagem = "Nenhuma câmera encontrada neste dispositivo.";
-      
-      alert(mensagem);
-      setCameraAtiva(false);
-    }
+const ligarCamera = async () => {
+  setFotoCapturada(null);
+  setCameraAtiva(true);
+  
+  const constraints = {
+    video: { 
+      facingMode: "user",
+      width: { ideal: 640 },
+      height: { ideal: 480 }
+    },
+    audio: false
   };
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    
+    // Aguardamos o React renderizar o elemento <video> antes de vincular o stream
+    setTimeout(() => {
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        
+        // O segredo: tentar dar play várias vezes caso o navegador tente pausar
+        const playVideo = () => {
+          videoRef.current.play().catch(err => {
+            console.log("Tentando play novamente...");
+            setTimeout(playVideo, 500);
+          });
+        };
+        playVideo();
+      }
+    }, 500);
+    
+  } catch (err) {
+    console.error("Erro fatal na câmera:", err);
+    alert("Erro: " + err.message + ". Verifique se o site tem permissão de câmera no seu navegador.");
+    setCameraAtiva(false);
+  }
+};
 
  const capturarFoto = () => {
   const video = videoRef.current;
