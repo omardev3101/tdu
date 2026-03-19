@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import api from '../services/api';
 import logo from '../assets/logo-tdu.png';
+import Footer from '../components/Footer'; // Verifique se o caminho está correto
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -18,7 +19,6 @@ export default function Dashboard() {
 
   // Função centralizada de busca de notificações (Badges)
   async function fetchBadges() {
-    // Se não houver token, nem tenta buscar para evitar erros 401 no console
     if (!localStorage.getItem('@TDU:token')) return;
 
     try {
@@ -30,7 +30,6 @@ export default function Dashboard() {
       if (requestsRes.data) setPendingRequests(requestsRes.data.length);
       
       if (agreementsRes.data) {
-        // Filtramos apenas os que não foram aceitos (termsAccepted: false ou 0)
         const pendingTerms = agreementsRes.data.filter(a => !a.termsAccepted).length;
         setPendingAgreements(pendingTerms);
       }
@@ -42,7 +41,6 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchBadges();
-    // Atualiza os contadores a cada 30 segundos
     const interval = setInterval(fetchBadges, 30000); 
     return () => clearInterval(interval);
   }, []);
@@ -59,6 +57,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-slate-950 flex text-slate-100 overflow-hidden">
+      
       {/* Sidebar */}
       <aside className="w-64 bg-slate-900 border-r border-slate-800 p-6 hidden md:flex flex-col">
         <div className="mb-10 text-center">
@@ -80,7 +79,6 @@ export default function Dashboard() {
             <LayoutDashboard size={18} /> Início
           </Link>
 
-          {/* SOLICITAÇÕES COM CONTADOR */}
           <Link to="/dashboard/solicitacoes" className={`flex items-center justify-between p-3 rounded-xl transition-all font-bold text-xs uppercase tracking-widest ${activeClass('/dashboard/solicitacoes')}`}>
             <div className="flex items-center gap-3">
               <UserPlus size={18} /> Solicitações
@@ -100,7 +98,6 @@ export default function Dashboard() {
             <DollarSign size={18} /> Financeiro
           </Link>
 
-          {/* ACORDOS COM CONTADOR */}
           <Link to="/dashboard/agreements" className={`flex items-center justify-between p-3 rounded-xl transition-all font-bold text-xs uppercase tracking-widest ${activeClass('/dashboard/agreements')}`}>
             <div className="flex items-center gap-3">
               <Handshake size={18} /> Acordos
@@ -130,9 +127,11 @@ export default function Dashboard() {
         </button>
       </aside>
 
-      {/* Conteúdo Principal */}
+      {/* Área de Conteúdo Principal */}
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
-        <header className="px-8 py-4 border-b border-slate-800 bg-slate-900/30 backdrop-blur-md flex justify-between items-center">
+        
+        {/* Header Superior */}
+        <header className="px-8 py-4 border-b border-slate-800 bg-slate-900/30 backdrop-blur-md flex justify-between items-center z-10">
           <div className="flex flex-col">
             <span className="text-[9px] text-slate-500 uppercase tracking-[0.3em] font-black">Admin Panel v2.6</span>
             <span className="text-sm font-medium text-slate-300 italic">
@@ -151,23 +150,14 @@ export default function Dashboard() {
           </div>
         </header>
 
-        <section className="flex-1 overflow-y-auto bg-slate-950 custom-scrollbar">
-            <Outlet />
-            // ... resto do código do Dashboard
-<main className="flex-1 flex flex-col h-screen overflow-hidden">
-  <header className="...">
-    {/* Seu header aqui */}
-  </header>
-
-  <section className="flex-1 overflow-y-auto bg-slate-950 custom-scrollbar flex flex-col">
-      <div className="flex-1">
-        <Outlet />
-      </div>
-      <Footer /> {/* <--- Adicione ele aqui! */}
-  </section>
-</main>
-// ...
+        {/* Seção com Scroll e Footer */}
+        <section className="flex-1 overflow-y-auto bg-slate-950 custom-scrollbar flex flex-col">
+            <div className="flex-1">
+                <Outlet />
+            </div>
+            <Footer />
         </section>
+
       </main>
     </div>
   );
