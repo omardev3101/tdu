@@ -12,17 +12,14 @@ const FRONT_URL = window.location.origin;
 
 // Componente do Conteúdo (O que será impresso)
 const MemberCardContent = React.forwardRef(({ member }, ref) => {
-  // 1. Limpa a URL para evitar o erro de barra dupla (ex: .com//uploads)
   const cleanBaseUrl = API_URL.replace(/\/$/, '');
   
-  // 2. Lógica de Foto: Prioriza Cloudinary (http), depois Local, depois Placeholder estável
   const photoUrl = member.photo_url 
     ? (member.photo_url.startsWith('http') 
         ? member.photo_url 
         : `${cleanBaseUrl}/uploads/${member.photo_url}`)
     : `https://placehold.co/150x180/1e293b/white?text=${member.full_name ? member.full_name.charAt(0) : 'TDU'}`;
 
-  // 3. QR Code aponta para a rota pública de consulta do membro (Validação)
   const validationUrl = `${FRONT_URL}/validar/${member.id}`;
 
   return (
@@ -36,7 +33,6 @@ const MemberCardContent = React.forwardRef(({ member }, ref) => {
     >
       {/* --- FRENTE DA CARTEIRINHA --- */}
       <div className="w-[380px] h-[240px] rounded-2xl overflow-hidden shadow-2xl relative border-2 border-red-900 flex text-white font-sans mb-10 bg-slate-950">
-        {/* Faixa Lateral Esquerda */}
         <div className="w-5 bg-red-800 h-full flex flex-col items-center py-3 space-y-1 shadow-inner">
           <div className="w-2.5 h-2.5 rounded-full bg-white/50"></div>
           <div className="w-2.5 h-2.5 rounded-full bg-black/50"></div>
@@ -44,7 +40,6 @@ const MemberCardContent = React.forwardRef(({ member }, ref) => {
         </div>
 
         <div className="flex-1 p-5 flex flex-col relative">
-          {/* Fundo Decorativo Sutil (Removido link externo para evitar erro de rede) */}
           <div className="absolute inset-0 opacity-10 pointer-events-none bg-[radial-gradient(#333_1px,transparent_1px)] [background-size:16px_16px]"></div>
 
           <div className="flex justify-between items-center mb-3 pb-2 border-b border-red-900/30 relative z-10">
@@ -53,8 +48,8 @@ const MemberCardContent = React.forwardRef(({ member }, ref) => {
                 <img src={logoImg} alt="Logo TDU" className="w-full h-full object-contain" />
               </div>
               <div>
-                <h2 className="text-base font-black tracking-tighter text-red-600 leading-none">TDU - 7 CAVEIRAS</h2>
-                <p className="text-[9px] uppercase tracking-widest text-slate-400 font-medium">Terreiro de Umbanda</p>
+                <h2 className="text-base font-black tracking-tighter text-red-600 leading-none">T.D.U. Zé Pelintra, Exu 7 Caveiras</h2>
+                <p className="text-[9px] uppercase tracking-widest text-slate-400 font-medium">Maria das 7 Cocadas</p>
               </div>
             </div>
             <ShieldCheck size={20} className="text-red-800 opacity-60" />
@@ -68,7 +63,6 @@ const MemberCardContent = React.forwardRef(({ member }, ref) => {
                 className="w-full h-full object-cover rounded-lg"
                 onError={(e) => { 
                   e.target.onerror = null;
-                  // Se a foto falhar, usa o placehold.co que é mais estável que o via.placeholder
                   e.target.src = `https://placehold.co/150x180/1e293b/white?text=${member.full_name ? member.full_name.charAt(0) : '?'}`; 
                 }} 
               />
@@ -89,12 +83,6 @@ const MemberCardContent = React.forwardRef(({ member }, ref) => {
                   <p className="text-[8px] text-slate-500 uppercase font-bold tracking-wider">ID</p>
                   <p className="text-[10px] font-mono text-slate-300 font-bold">#{String(member.id).padStart(4, '0')}</p>
                 </div>
-                <div className="col-span-2">
-                  <p className="text-[8px] text-slate-500 uppercase font-bold tracking-wider">Batismo</p>
-                  <p className="text-[9px] text-slate-300 font-medium">
-                    {member.baptism_date ? new Date(member.baptism_date).toLocaleDateString('pt-BR') : '---'}
-                  </p>
-                </div>
               </div>
             </div>
           </div>
@@ -106,17 +94,25 @@ const MemberCardContent = React.forwardRef(({ member }, ref) => {
         </div>
       </div>
 
-      {/* --- VERSO DA CARTEIRINHA --- */}
-      <div className="w-[380px] h-[240px] rounded-2xl border-2 border-dashed border-slate-300 p-8 flex flex-col justify-between text-slate-900 bg-slate-50 shadow-inner">
-        <div className="text-center space-y-2">
+      {/* --- VERSO DA CARTEIRINHA COM FUNDO DE CAVEIRAS --- */}
+      <div 
+        className="w-[380px] h-[240px] rounded-2xl border-2 border-dashed border-slate-300 p-8 flex flex-col justify-between text-slate-900 shadow-inner relative overflow-hidden"
+        style={{
+          backgroundColor: '#f8fafc', 
+          // Pattern SVG de caveiras estilizadas (Marca d'água sutil)
+          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Cg fill-rule='evenodd'%3E%3Cg fill='%3C94a3b8' fill-opacity='0.12'%3E%3Cpath d='M20 10c-1.1 0-2 .9-2 2v2h4v-2c0-1.1-.9-2-2-2zm-6 8c-1.1 0-2 .9-2 2v6h2v-2h8v2h2v-6c0-1.1-.9-2-2-2h-8z'/%3E%3Ccircle cx='16' cy='22' r='2'/%3E%3Ccircle cx='24' cy='22' r='2'/%3E%3Cpath d='M18 28h4v2h-4z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+          backgroundRepeat: 'repeat',
+        }}
+      >
+        <div className="text-center space-y-2 relative z-10">
           <MapPin size={24} className="text-red-900 mx-auto opacity-80" />
-          <h3 className="text-[12px] font-black uppercase text-red-950 tracking-wider">TDU - 7 Caveiras</h3>
-          <p className="text-[9px] leading-relaxed font-medium italic text-slate-700 bg-white/80 p-3 rounded-xl border border-slate-200 shadow-sm">
-            "Este documento atesta o vínculo religioso do membro com o Terreiro de Umbanda 7 Caveiras. Representa o compromisso com a caridade e a evolução espiritual."
+          <h3 className="text-[12px] font-black uppercase text-red-950 tracking-wider leading-tight">T.D.U. Zé Pelintra, Exu 7 Caveiras e Maria das 7 Cocadas</h3>
+          <p className="text-[9px] leading-relaxed font-medium italic text-slate-700 bg-white/90 p-3 rounded-xl border border-slate-200 shadow-sm">
+            "Este documento atesta o vínculo religioso do membro com o terreiro. Representa o compromisso com a caridade e a evolução espiritual sob a proteção das falanges."
           </p>
         </div>
         
-        <div className="flex justify-center items-center gap-6 border-t border-slate-200 pt-4">
+        <div className="flex justify-center items-center gap-6 border-t border-slate-200 pt-4 relative z-10">
              <div className="bg-white p-1.5 rounded-lg border border-slate-200 shadow-sm">
                 <QRCodeSVG 
                   value={validationUrl} 
@@ -135,6 +131,7 @@ const MemberCardContent = React.forwardRef(({ member }, ref) => {
     </div>
   );
 });
+
 
 // Componente Principal do Modal
 export default function MemberCard({ member, isOpen, onClose }) {
