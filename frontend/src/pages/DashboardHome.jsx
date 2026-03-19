@@ -94,15 +94,27 @@ const getMemberObj = (name, phone) => {
 };
 
 // 1. Processamento das Mensalidades
+// 1. Processamento das Contribuições (Mensalidades + Parcelas de Acordo)
 contributions.forEach(c => {
   if (c.status === 'Pendente' || c.status === 'Atrasado') {
     const val = Number(c.value) || 0;
     pendingTotalVal += val;
+    
     const memberData = c.Member || c.member;
-    const m = getMemberObj(memberData?.full_name || 'Não Identificado', memberData?.phone_whatsapp);
-    m.monthly += val;
+    const name = memberData?.full_name || 'Não Identificado';
+    const m = getMemberObj(name, memberData?.phone_whatsapp);
+
+    // VERIFICAÇÃO: Se a descrição tem "ACORDO" ou o campo type é "Acordo"
+    const isAcordo = c.description?.toUpperCase().includes('ACORDO') || c.type === 'Acordo';
+
+    if (isAcordo) {
+      m.agreementInstallments += val; // Agora preenche a coluna correta!
+    } else {
+      m.monthly += val;
+      m.count += 1;
+    }
+
     m.total += val;
-    m.count += 1;
   }
 });
 
