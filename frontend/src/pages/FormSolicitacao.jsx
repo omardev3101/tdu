@@ -92,20 +92,50 @@ const FormSolicitacao = () => {
     }
   };
 
-  const capturarFoto = () => {
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    if (video && canvas) {
-      canvas.width = 600; canvas.height = 800;
-      const context = canvas.getContext('2d');
-      context.translate(600, 0);
-      context.scale(-1, 1);
-      context.drawImage(video, 0, 0, 600, 800);
-      setFotoCapturada(canvas.toDataURL('image/jpeg', 0.9));
+ const capturarFoto = () => {
+  const video = videoRef.current;
+  const canvas = canvasRef.current;
+  
+  if (video && canvas) {
+    // Definimos o tamanho final da foto (Proporção 3:4 vertical)
+    const larguraAlvo = 600;
+    const alturaAlvo = 800;
+    
+    canvas.width = larguraAlvo;
+    canvas.height = alturaAlvo;
+    const context = canvas.getContext('2d');
+
+    // --- LÓGICA DE CORTE PARA EVITAR DISTORÇÃO ---
+    // Pegamos as dimensões REAIS do vídeo que está vindo da câmera
+    const videoW = video.videoWidth;
+    const videoH = video.videoHeight;
+
+    // Calculamos a proporção para cobrir o canvas sem sobrar espaço
+    const ratio = Math.max(larguraAlvo / videoW, alturaAlvo / videoH);
+    const drawW = videoW * ratio;
+    const drawH = videoH * ratio;
+
+    // Centralizamos o corte
+    const dx = (larguraAlvo - drawW) / 2;
+    const dy = (alturaAlvo - drawH) / 2;
+
+    // Espelhamento (para a foto ficar igual ao que a pessoa vê na tela)
+    context.translate(larguraAlvo, 0);
+    context.scale(-1, 1);
+
+    // Desenha a imagem cortada e centralizada
+    context.drawImage(video, dx, dy, drawW, drawH);
+
+    // Finaliza
+    setFotoCapturada(canvas.toDataURL('image/jpeg', 0.9));
+    
+    // Desliga a câmera
+    if (video.srcObject) {
       video.srcObject.getTracks().forEach(track => track.stop());
-      setCameraAtiva(false);
     }
-  };
+    setCameraAtiva(false);
+  }
+};
 
 const handleSubmit = async (e) => {
   e.preventDefault();
@@ -182,24 +212,92 @@ const handleSubmit = async (e) => {
 
         <form onSubmit={handleSubmit} className="space-y-8">
           
-          {/* FOTO BIOMÉTRICA */}
-          <div className="bg-slate-900/50 border border-slate-800 p-8 rounded-[45px] flex flex-col items-center shadow-2xl relative">
-            <div className="relative w-64 h-80 mb-6 bg-slate-950 rounded-[60px] overflow-hidden border-4 border-slate-800 flex items-center justify-center">
-                {cameraAtiva && (
-                  <>
-                    <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover scale-x-[-1]" />
-                    <div className="absolute inset-0 pointer-events-none border-[30px] border-slate-950/60">
-                         <div className="w-full h-full border-2 border-red-600/40 rounded-[50%_50%_35%_35%]"></div>
-                    </div>
-                  </>
-                )}
-                {fotoCapturada && <img src={fotoCapturada} alt="Biometria" className="w-full h-full object-cover" />}
-                {!cameraAtiva && !fotoCapturada && <User size={80} className="text-slate-800" />}
-            </div>
-            <button type="button" onClick={cameraAtiva ? capturarFoto : ligarCamera} className="w-full max-w-xs bg-red-600 text-white font-black py-4 rounded-2xl uppercase text-[10px] tracking-widest hover:bg-red-700 transition-all">
-              {cameraAtiva ? "Capturar Agora" : "Ativar Câmera"}
-            </button>
+{/* FOTO BIOMÉTRICA - CÂMERA OU GALERIA */}
+<div className="bg-slate-900/50 border border-slate-800 p-8 rounded-[45px] flex flex-col items-center shadow-2xl relative">
+  
+  {/* Container do Preview (Proporção 3:4) */}
+  <div className="relative w-64 h-80 mb-6 bg-slate-950 rounded-[60px] overflow-hidden border-4 border-slate-800 flex items-center justify-center shadow-inner">
+    
+    {cameraAtiva && (
+      <>
+        <video 
+          ref={videoRef} 
+          autoPlay 
+          playsInline 
+          className="w-full h-full object-cover scale-x-[-1]" 
+        />
+        <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+          <div className="absolute inset-0 bg-slate-950/40"></div>
+          <div className="w-[85%] h-[85%] border-2 border-dashed border-white/30 rounded-[50%_50%_40%_40%] relative">
+             <div className="absolute inset-0 border-2 border-red-600/40 rounded-[50%_50%_40%_40%] animate-pulse"></div>
           </div>
+        </div>
+      </>
+    )}
+
+    {fotoCapturada && (
+      <img 
+        src={fotoCapturada} 
+        alt="Biometria" 
+        className="w-full h-full object-cover animate-in fade-in duration-500" 
+      />
+    )}
+
+    {!cameraAtiva && !fotoCapturada && (
+      <div className="flex flex-col items-center gap-2">
+        <User size={80} className="text-slate-800" />
+        <span className="text-[8px] font-black text-slate-700 uppercase tracking-widest italic">Aguardando Imagem</span>
+      </div>
+    )}
+  </div>
+
+  {/* Controles de Ação */}
+  <div className="w-full max-w-xs space-y-3">
+    {/* Botão Principal: Câmera */}
+    <button 
+      type="button" 
+      onClick={cameraAtiva ? capturarFoto : ligarCamera} 
+      className={`w-full font-black py-4 rounded-2xl uppercase text-[10px] tracking-widest transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2 ${
+        cameraAtiva 
+          ? "bg-white text-slate-950 hover:bg-slate-200" 
+          : "bg-red-600 text-white hover:bg-red-700"
+      }`}
+    >
+      {cameraAtiva ? <RefreshCw size={16} className="animate-spin-slow" /> : <Camera size={16} />}
+      {cameraAtiva ? "Capturar Agora" : fotoCapturada ? "Tirar Outra Foto" : "Usar Câmera ao Vivo"}
+    </button>
+
+    {/* Botão Secundário: Galeria (Apenas se a câmera estiver desligada) */}
+    {!cameraAtiva && (
+      <div className="relative">
+        <input 
+          type="file" 
+          accept="image/*" 
+          className="absolute inset-0 opacity-0 cursor-pointer" 
+          onChange={(e) => {
+            const file = e.target.files[0];
+            if (file) {
+              const reader = new FileReader();
+              reader.onloadend = () => setFotoCapturada(reader.result);
+              reader.readAsDataURL(file);
+            }
+          }}
+        />
+        <button 
+          type="button" 
+          className="w-full border border-slate-700 text-slate-400 font-bold py-3 rounded-2xl uppercase text-[9px] tracking-[0.2em] hover:bg-slate-800 hover:text-white transition-all flex items-center justify-center gap-2"
+        >
+          <FileText size={14} /> 
+          {fotoCapturada ? "Trocar Arquivo" : "Enviar da Galeria"}
+        </button>
+      </div>
+    )}
+  </div>
+
+  <p className="mt-4 text-[8px] text-slate-600 uppercase font-bold tracking-tighter italic">
+    * A foto deve mostrar claramente o rosto do solicitante.
+  </p>
+</div>
 
           {/* 01. IDENTIFICAÇÃO */}
           <div className="bg-slate-900/40 border border-slate-800 p-8 rounded-[32px] space-y-4 shadow-xl">
