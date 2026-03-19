@@ -2,11 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { 
   Users, DollarSign, Calendar, LogOut, Heart, 
-  LayoutDashboard, UserPlus, Handshake 
+  LayoutDashboard, UserPlus, Handshake, Menu, X 
 } from 'lucide-react';
 import api from '../services/api';
 import logo from '../assets/logo-tdu.png';
-import Footer from '../components/Footer'; // Verifique se o caminho está correto
+import Footer from '../components/Footer';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -14,26 +14,23 @@ export default function Dashboard() {
   const [pendingRequests, setPendingRequests] = useState(0);
   const [pendingAgreements, setPendingAgreements] = useState(0);
   
-  // Proteção para o parse do usuário
+  // ESTADO PARA O MENU MOBILE
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  
   const user = JSON.parse(localStorage.getItem('@TDU:user') || '{}');
 
-  // Função centralizada de busca de notificações (Badges)
   async function fetchBadges() {
     if (!localStorage.getItem('@TDU:token')) return;
-
     try {
       const [requestsRes, agreementsRes] = await Promise.all([
         api.get('/admin/solicitacoes-pendentes'),
         api.get('/agreements') 
       ]);
-      
       if (requestsRes.data) setPendingRequests(requestsRes.data.length);
-      
       if (agreementsRes.data) {
         const pendingTerms = agreementsRes.data.filter(a => !a.termsAccepted).length;
         setPendingAgreements(pendingTerms);
       }
-      
     } catch (err) {
       console.error("Erro ao sincronizar badges:", err.message);
     }
@@ -44,6 +41,11 @@ export default function Dashboard() {
     const interval = setInterval(fetchBadges, 30000); 
     return () => clearInterval(interval);
   }, []);
+
+  // FECHA O MENU AO MUDAR DE ROTA (MOBILE)
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [location.pathname]);
 
   function handleLogout() {
     localStorage.clear();
@@ -56,18 +58,35 @@ export default function Dashboard() {
       : "text-slate-400 hover:text-white hover:bg-slate-800/50";
 
   return (
-    <div className="min-h-screen bg-slate-950 flex text-slate-100 overflow-hidden">
+    <div className="min-h-screen bg-slate-950 flex text-slate-100 overflow-hidden relative">
       
-      {/* Sidebar */}
-      <aside className="w-64 bg-slate-900 border-r border-slate-800 p-6 hidden md:flex flex-col">
+      {/* 1. OVERLAY PARA MOBILE (Fundo escuro ao abrir menu) */}
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* 2. SIDEBAR (Ajustada para Mobile) */}
+      <aside className={`
+        fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 border-r border-slate-800 p-6 
+        transition-transform duration-300 ease-in-out flex flex-col
+        md:relative md:translate-x-0
+        ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
+      `}>
+        {/* Botão de Fechar dentro da Sidebar (Mobile) */}
+        <button 
+          className="md:hidden absolute top-4 right-4 text-slate-400"
+          onClick={() => setIsMobileMenuOpen(false)}
+        >
+          <X size={24} />
+        </button>
+
         <div className="mb-10 text-center">
           <div className="mb-4">
             <div className="w-20 h-20 mx-auto bg-white rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(220,38,38,0.2)] p-2">
-              <img 
-                src={logo} 
-                alt="Logo TDU" 
-                className="w-full h-full object-contain" 
-              />
+              <img src={logo} alt="Logo TDU" className="w-full h-full object-contain" />
             </div>
           </div>
           <h2 className="text-2xl font-black text-red-600 tracking-tighter italic leading-none">7 CAVEIRAS</h2>
@@ -127,25 +146,35 @@ export default function Dashboard() {
         </button>
       </aside>
 
-      {/* Área de Conteúdo Principal */}
+      {/* 3. CONTEÚDO PRINCIPAL */}
       <main className="flex-1 flex flex-col h-screen overflow-hidden">
         
-        {/* Header Superior */}
-        <header className="px-8 py-4 border-b border-slate-800 bg-slate-900/30 backdrop-blur-md flex justify-between items-center z-10">
-          <div className="flex flex-col">
-            <span className="text-[9px] text-slate-500 uppercase tracking-[0.3em] font-black">Admin Panel v2.6</span>
-            <span className="text-sm font-medium text-slate-300 italic">
-              Axé, <b className="text-white not-italic">{user?.full_name || user?.name || 'Irmão'}</b>
-            </span>
+        {/* Header Superior Ajustado */}
+        <header className="px-6 md:px-8 py-4 border-b border-slate-800 bg-slate-900/30 backdrop-blur-md flex justify-between items-center z-10">
+          <div className="flex items-center gap-4">
+            {/* BOTÃO HAMBÚRGUER (Apenas Mobile) */}
+            <button 
+              onClick={() => setIsMobileMenuOpen(true)}
+              className="md:hidden text-slate-100 hover:text-red-500 transition-colors"
+            >
+              <Menu size={24} />
+            </button>
+
+            <div className="flex flex-col">
+              <span className="text-[9px] text-slate-500 uppercase tracking-[0.3em] font-black">Admin Panel</span>
+              <span className="text-sm font-medium text-slate-300 italic">
+                Axé, <b className="text-white not-italic">{user?.full_name?.split(' ')[0] || 'Irmão'}</b>
+              </span>
+            </div>
           </div>
           
           <div className="flex items-center gap-4">
             <div className="text-right hidden sm:block">
               <p className="text-[10px] font-black text-red-500 uppercase tracking-tighter">{user?.role || 'Acesso'}</p>
-              <p className="text-[9px] text-slate-600 font-bold tracking-widest">TDU7C-2026</p>
+              <p className="text-[9px] text-slate-600 font-bold tracking-widest">TDU-2026</p>
             </div>
-            <div className="w-10 h-10 bg-gradient-to-br from-red-600 to-red-950 rounded-xl flex items-center justify-center shadow-2xl shadow-red-900/20 text-white font-black italic border border-red-500/20">
-              {(user?.full_name || user?.name || 'T').charAt(0)}
+            <div className="w-10 h-10 bg-gradient-to-br from-red-600 to-red-950 rounded-xl flex items-center justify-center text-white font-black italic border border-red-500/20">
+              {(user?.full_name || 'T').charAt(0)}
             </div>
           </div>
         </header>
