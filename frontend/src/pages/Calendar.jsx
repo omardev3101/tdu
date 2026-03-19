@@ -43,15 +43,27 @@ export default function Calendar() {
     } finally { setLoading(false); }
   }
 
-  const handleSaveEvent = async (e) => {
-    e.preventDefault();
-    try {
-      await api.post('/events', newEvent);
-      setIsModalOpen(false);
-      setNewEvent({ title: '', type: 'Gira', date: format(new Date(), 'yyyy-MM-dd'), time: '20:00', description: '', observations: '' });
-      loadEvents();
-    } catch (err) { alert("Erro ao salvar evento no banco."); }
-  };
+  const handleSaveEvent = async (data) => {
+  try {
+    // "LIMPEZA" DOS DADOS ANTES DE ENVIAR
+    const payload = {
+      title: data.title,
+      description: data.description || "",
+      // Garante que a data vá apenas como 2026-03-19
+      start_date: new Date(data.start_date).toISOString().split('T')[0],
+      type: data.type || "Gira", // Ex: Gira, Festa, Reunião
+      color: data.color || "#ef4444"
+    };
+
+    await api.post('/events', payload);
+    
+    alert("Evento marcado no congá!");
+    window.location.reload();
+  } catch (err) {
+    console.error("Erro detalhado:", err.response?.data);
+    alert("Erro 400: Verifique se preencheu todos os campos obrigatórios.");
+  }
+};
 
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(monthStart);

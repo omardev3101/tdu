@@ -12,22 +12,25 @@ module.exports = {
 
   async store(req, res) {
     try {
-      const { title, date, time, description, type } = req.body;
+      // 1. ADICIONADO: 'observations' agora é extraído do body
+      const { title, date, time, description, type, observations } = req.body;
       
       const event = await Event.create({ 
         title,
-         
-        eventDate: date, // Mapeando date -> eventDate
-        startTime: time, // Mapeando time -> startTime
+        eventDate: date, 
+        startTime: time, 
         description,
         type: type || 'Gira',
-        observations
+        observations: observations || "" // 2. GARANTIDO: Valor padrão vazio se não vier nada
       });
 
       return res.json(event);
     } catch (err) {
-      console.error(err);
-      return res.status(400).json({ error: 'Erro ao salvar evento' });
+      console.error("ERRO NO BACKEND:", err); // Isso vai aparecer nos logs do Render
+      return res.status(400).json({ 
+        error: 'Erro ao salvar evento', 
+        details: err.message 
+      });
     }
   }
-};
+}

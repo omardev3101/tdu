@@ -90,7 +90,7 @@ export default function Dashboard() {
             </div>
           </div>
           <h2 className="text-2xl font-black text-red-600 tracking-tighter italic leading-none">7 CAVEIRAS</h2>
-          <p className="text-[10px] text-slate-500 uppercase tracking-[0.2em] font-bold mt-2">Gestão de Terreiro</p>
+          <p className="text-[10px] text-slate-500 uppercase tracking-[0.2em] font-bold mt-2">Gestão do Terreiro</p>
         </div>
 
         <nav className="space-y-2 flex-1 overflow-y-auto pr-2 custom-scrollbar">
