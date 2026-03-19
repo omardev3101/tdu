@@ -174,7 +174,7 @@ export default function MemberCard({ member, isOpen, onClose }) {
         {/* Header do Modal */}
         <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900">
           <h2 className="text-xl font-bold flex items-center gap-2 text-white">
-            <Printer className="text-red-600" /> Carteirinha Digital
+            <Printer className="text-red-600" /> Carteirinha Digital TDU 7 Caveiras
           </h2>
           <button 
             onClick={onClose} 
