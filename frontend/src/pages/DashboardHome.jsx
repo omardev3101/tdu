@@ -98,23 +98,45 @@ members.forEach(m => {
 });
 
 // 2. SEGUNDO: Somamos as Contribuições (Mensalidades e Parcelas de Acordo)
+// 1. Processamento das Contribuições (Mensalidades + Parcelas de Acordo)
 contributions.forEach(c => {
-  if (c.status === 'Pendente' || c.status === 'Atrasado') {
-    const val = Number(c.value) || 0;
-    const memberData = c.Member || c.member;
-    const key = memberData?.full_name?.trim().toUpperCase();
+  const memberData = c.Member || c.member;
+  const name = memberData?.full_name || 'Não Identificado';
+  const m = getMemberObj(name, memberData?.phone_whatsapp);
 
-    if (key && membersDebt[key]) {
-      const isAcordo = c.description?.toUpperCase().includes('ACORDO') || c.type === 'Acordo';
+  // Identifica se é Acordo pelo texto
+  const isAcordo = c.description?.toUpperCase().includes('ACORDO');
 
-      if (isAcordo) {
-        membersDebt[key].agreementInstallments += val;
-      } else {
-        membersDebt[key].monthly += val;
-        membersDebt[key].count += 1;
+  if (isAcordo) {
+    // Tenta extrair o "1/5" da descrição usando Regex
+    // Procure por algo como "1/5", "2/10", etc.
+    const parcelaMatch = c.description.match(/(\d+\/\d+)/);
+    const parcelaTexto = parcelaMatch ? parcelaMatch[0] : "";
+
+    if (c.status === 'Pendente' || c.status === 'Atrasado') {
+      const val = Number(c.value) || 0;
+      m.agreementInstallments += val;
+      m.total += val;
+      pendingTotalVal += val;
+      
+      // Armazena qual a próxima parcela pendente (a menor encontrada)
+      if (!m.nextInstallment || parcelaTexto < m.nextInstallment) {
+        m.nextInstallment = parcelaTexto;
       }
-
-      membersDebt[key].total += val;
+    }
+    
+    // Armazena o total de parcelas (o maior número depois da barra)
+    if (parcelaTexto) {
+      const totalParcelas = parcelaTexto.split('/')[1];
+      m.totalInstallments = totalParcelas;
+    }
+  } else {
+    // Lógica normal para mensalidade
+    if (c.status === 'Pendente' || c.status === 'Atrasado') {
+      const val = Number(c.value) || 0;
+      m.monthly += val;
+      m.count += 1;
+      m.total += val;
       pendingTotalVal += val;
     }
   }
@@ -246,50 +268,79 @@ setDebtRanking(ranking);
               <tr>
                 <th className="p-6 text-[10px] font-black text-slate-500 uppercase">Membro</th>
                 <th className="p-6 text-[10px] font-black text-slate-500 uppercase text-center">Mensalidades</th>
-                <th className="p-6 text-[10px] font-black text-slate-500 uppercase text-center">Parcelas Acordo</th>
+                <th className="p-6 text-[10px] font-black text-slate-500 uppercase text-center"> Acordo</th>
+                <th className="p-6 text-[10px] font-black text-slate-500 uppercase text-center">Nº de Parcelas</th>
                 <th className="p-6 text-[10px] font-black text-slate-500 uppercase text-center">Retroativo</th>
                 <th className="p-6 text-[10px] font-black text-slate-500 uppercase text-right">Dívida Total</th>
                 <th className="p-6 text-[10px] font-black text-slate-500 uppercase text-center">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/50">
-              {currentItems.map((item, i) => (
-                <tr key={i} className="hover:bg-slate-800/40 transition-colors group">
-                  <td className="p-6">
-                    <div className="flex flex-col">
-                      <span className="font-black text-sm uppercase text-slate-200 group-hover:text-red-500 transition-colors">{item.name}</span>
-                      <span className="text-[9px] text-slate-500 font-bold uppercase tracking-tighter italic">Posição: {((currentPage - 1) * itemsPerPage) + i + 1}º</span>
-                    </div>
-                  </td>
-                  <td className="p-6 text-center">
-                    <div className="flex flex-col">
-                      <span className="text-xs font-bold text-amber-500">R$ {item.monthly.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                      <span className="text-[8px] font-black text-slate-600 uppercase">{item.count} meses</span>
-                    </div>
-                  </td>
-                  <td className="p-6 text-center">
-                    <span className="text-xs font-bold text-emerald-500">
-                      {item.agreementInstallments > 0 ? `R$ ${item.agreementInstallments.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '—'}
-                    </span>
-                  </td>
-                  <td className="p-6 text-center">
-                    <span className="text-xs font-bold text-slate-500">
-                      {item.retroactive > 0 ? `R$ ${item.retroactive.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '—'}
-                    </span>
-                  </td>
-                  <td className="p-6 text-right">
-                    <span className="text-sm font-black text-red-500 font-mono italic">
-                      R$ {item.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </span>
-                  </td>
-                  <td className="p-6 text-center">
-                    <button onClick={() => handleNotify(item)} className="p-3 bg-emerald-600/10 text-emerald-500 rounded-2xl hover:bg-emerald-600 hover:text-white transition-all shadow-xl active:scale-90">
-                      <MessageSquare size={18} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
+  {currentItems.map((item, i) => (
+    <tr key={i} className="hover:bg-slate-800/40 transition-colors group">
+      <td className="p-6">
+        <div className="flex flex-col">
+          <span className="font-black text-sm uppercase text-slate-200 group-hover:text-red-500 transition-colors">{item.name}</span>
+          <span className="text-[9px] text-slate-500 font-bold uppercase tracking-tighter italic">Posição: {((currentPage - 1) * itemsPerPage) + i + 1}º</span>
+        </div>
+      </td>
+      
+      {/* Mensalidades */}
+      <td className="p-6 text-center">
+        <div className="flex flex-col">
+          <span className="text-xs font-bold text-amber-500">R$ {item.monthly.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+          <span className="text-[8px] font-black text-slate-600 uppercase">{item.count} meses</span>
+        </div>
+      </td>
+
+      {/* Valor do Acordo */}
+      <td className="p-6 text-center">
+        <span className="text-xs font-bold text-emerald-500">
+          {item.agreementInstallments > 0 ? `R$ ${item.agreementInstallments.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '—'}
+        </span>
+      </td>
+
+      {/* Nº DE PARCELAS (Dinamismo 1/5, 2/5...) */}
+      <td className="p-6 text-center">
+        <div className="flex flex-col items-center justify-center">
+          {item.nextInstallment ? (
+            <>
+              <span className="text-xs font-black text-slate-300">
+                {item.nextInstallment}
+              </span>
+              <span className="text-[8px] font-bold text-slate-600 uppercase tracking-tighter">
+                Pendente
+              </span>
+            </>
+          ) : (
+            <span className="text-slate-700">—</span>
+          )}
+        </div>
+      </td>
+
+      {/* Retroativo */}
+      <td className="p-6 text-center">
+        <span className="text-xs font-bold text-slate-500">
+          {item.retroactive > 0 ? `R$ ${item.retroactive.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '—'}
+        </span>
+      </td>
+
+      {/* Dívida Total */}
+      <td className="p-6 text-right">
+        <span className="text-sm font-black text-red-500 font-mono italic">
+          R$ {item.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+        </span>
+      </td>
+
+      {/* Ações */}
+      <td className="p-6 text-center">
+        <button onClick={() => handleNotify(item)} className="p-3 bg-emerald-600/10 text-emerald-500 rounded-2xl hover:bg-emerald-600 hover:text-white transition-all shadow-xl active:scale-90">
+          <MessageSquare size={18} />
+        </button>
+      </td>
+    </tr>
+  ))}
+</tbody>
           </table>
         </div>
       </div>
