@@ -10,6 +10,7 @@ export default function ExtraRecords() {
   const [showModal, setShowModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   
+  const [externalName, setExternalName] = useState('');
   const [selectedMembers, setSelectedMembers] = useState([]);
   const [formData, setFormData] = useState({
     description: '',
@@ -50,34 +51,42 @@ export default function ExtraRecords() {
     );
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (selectedMembers.length === 0) return alert("Selecione ao menos um membro participante.");
+  // 2. Atualize a função handleSubmit para lidar com os dois casos
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  
+  // Verifica se tem alguém selecionado OU um nome externo digitado
+  if (selectedMembers.length === 0 && !externalName.trim()) {
+    return alert("Por favor, selecione um membro ou digite o nome de quem realizou a doação.");
+  }
 
-    try {
-      // Conversão explícita para número decimal
-      const dataToSend = {
-        ...formData,
-        value: parseFloat(formData.value),
-        type: activeTab,
-        memberIds: selectedMembers 
-      };
+  try {
+    const dataToSend = {
+      ...formData,
+      value: parseFloat(formData.value),
+      type: activeTab,
+      // Envia os IDs se houver, ou o nome externo se for pessoa de fora
+      memberIds: selectedMembers.length > 0 ? selectedMembers : [],
+      external_donor: externalName.trim() || null 
+    };
 
-      await api.post('/extra-records', dataToSend);
-      
-      setShowModal(false);
-      setSelectedMembers([]);
-      setFormData({ 
-        description: '', 
-        value: '', 
-        date: new Date().toISOString().split('T')[0] 
-      });
-      loadData();
-      alert("Registro salvo com sucesso! Axé.");
-    } catch (err) {
-      alert(err.response?.data?.error || "Erro ao salvar registro.");
-    }
-  };
+    await api.post('/extra-records', dataToSend);
+    
+    // Limpeza após sucesso
+    setShowModal(false);
+    setSelectedMembers([]);
+    setExternalName('');
+    setFormData({ 
+      description: '', 
+      value: '', 
+      date: new Date().toISOString().split('T')[0] 
+    });
+    loadData();
+    alert("Registro salvo com sucesso! Axé.");
+  } catch (err) {
+    alert(err.response?.data?.error || "Erro ao salvar registro.");
+  }
+};
 
   const filteredRecords = records.filter(r => 
     r.type === activeTab && 
@@ -196,35 +205,65 @@ export default function ExtraRecords() {
             </div>
             
             <form onSubmit={handleSubmit} className="space-y-6">
-              <div>
-                <div className="flex justify-between items-center mb-3">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Selecionar Membro(s)</label>
-                  <button type="button" onClick={handleSelectAll} className="text-[9px] font-black text-red-500 uppercase px-3 py-1 bg-red-500/10 rounded-lg hover:bg-red-500 hover:text-white transition-all">
-                    {selectedMembers.length === members.length ? 'Limpar' : 'Todos'}
-                  </button>
-                </div>
-                <div className="bg-black/40 border border-slate-800 rounded-2xl p-4 max-h-48 overflow-y-auto grid grid-cols-1 gap-2 custom-scrollbar">
-                  {members.map(m => {
-                    const isSelected = selectedMembers.includes(Number(m.id));
-                    return (
-                      <div 
-                        key={m.id} 
-                        onClick={() => toggleMember(m.id)}
-                        className={`flex items-center justify-between p-3 rounded-xl cursor-pointer select-none transition-all ${
-                          isSelected 
-                            ? 'bg-red-600/10 border-red-600/30 border' 
-                            : 'hover:bg-slate-800 border border-transparent'
-                        }`}
-                      >
-                        <span className={`text-[11px] font-black uppercase ${isSelected ? 'text-white' : 'text-slate-600'}`}>
-                          {m.full_name}
-                        </span>
-                        {isSelected && <Check size={14} className="text-red-500" />}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+            <div>
+  <label className="text-[10px] font-black text-slate-500 uppercase mb-3 block tracking-widest">
+    Quem realizou a {activeTab}?
+  </label>
+  
+  <div className="space-y-4">
+    {/* OPÇÃO A: DIGITAR NOME (Pessoa de fora) */}
+    <div className="relative">
+      <input 
+        type="text"
+        placeholder="NOME DE QUEM DOOU (EX: VISITANTE, EMPRESA...)"
+        className={`w-full bg-black/40 border p-4 rounded-2xl text-white font-bold text-xs uppercase outline-none transition-all ${externalName ? 'border-emerald-500' : 'border-slate-800 focus:border-red-600'}`}
+        value={externalName}
+        onChange={(e) => {
+          setExternalName(e.target.value);
+          if(e.target.value) setSelectedMembers([]); // Limpa seleção de membros se digitar nome
+        }}
+      />
+      {externalName && <div className="absolute right-4 top-4 text-emerald-500 font-black text-[8px] uppercase">Externo</div>}
+    </div>
+
+    <div className="flex items-center gap-4 text-slate-700">
+      <div className="h-px bg-slate-800 flex-1"></div>
+      <span className="text-[8px] font-black uppercase">OU</span>
+      <div className="h-px bg-slate-800 flex-1"></div>
+    </div>
+
+    {/* OPÇÃO B: SELECIONAR DA LISTA (Membros do Terreiro) */}
+    <div className="bg-black/20 border border-slate-800 rounded-2xl p-4">
+      <div className="flex justify-between items-center mb-3">
+        <span className="text-[9px] font-black text-slate-600 uppercase italic">Membros do Terreiro</span>
+        <span className="text-[9px] font-black text-red-500 uppercase">{selectedMembers.length} selecionados</span>
+      </div>
+      
+      <div className="max-h-40 overflow-y-auto grid grid-cols-1 gap-2 custom-scrollbar pr-2">
+        {members.map(m => {
+          const isSelected = selectedMembers.includes(Number(m.id));
+          return (
+            <div 
+              key={m.id} 
+              onClick={() => {
+                toggleMember(m.id);
+                setExternalName(''); // Limpa nome externo se selecionar membro
+              }}
+              className={`flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all ${
+                isSelected ? 'bg-red-600/10 border-red-600/30 border' : 'hover:bg-slate-800/50 border border-transparent'
+              }`}
+            >
+              <span className={`text-[10px] font-black uppercase ${isSelected ? 'text-white' : 'text-slate-500'}`}>
+                {m.full_name}
+              </span>
+              {isSelected && <Check size={12} className="text-red-500" />}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  </div>
+</div>
 
               <div>
                 <label className="text-[10px] font-black text-slate-500 uppercase mb-2 block tracking-widest">Descrição</label>
