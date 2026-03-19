@@ -81,13 +81,34 @@ const FormSolicitacao = () => {
   const ligarCamera = async () => {
     setFotoCapturada(null);
     setCameraAtiva(true);
+    
+    // Configurações otimizadas para mobile e desktop
+    const constraints = {
+      video: {
+        facingMode: "user",
+        width: { ideal: 640 },
+        height: { ideal: 480 }
+      },
+      audio: false // Garante que não peça áudio, o que facilita a permissão
+    };
+
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } } 
-      });
-      if (videoRef.current) videoRef.current.srcObject = stream;
+      // Pequeno delay para garantir que o elemento videoRef já esteja no DOM
+      setTimeout(async () => {
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          // Força o play para garantir que o vídeo inicie
+          videoRef.current.play().catch(e => console.error("Erro ao dar play no vídeo:", e));
+        }
+      }, 300);
     } catch (err) {
-      alert("Erro ao acessar câmera.");
+      console.error("Erro na câmera:", err);
+      let mensagem = "Não foi possível acessar a câmera.";
+      if (err.name === 'NotAllowedError') mensagem = "Permissão de câmera negada. Por favor, autorize nas configurações do seu navegador.";
+      if (err.name === 'NotFoundError') mensagem = "Nenhuma câmera encontrada neste dispositivo.";
+      
+      alert(mensagem);
       setCameraAtiva(false);
     }
   };
@@ -221,11 +242,12 @@ const handleSubmit = async (e) => {
     {cameraAtiva && (
       <>
         <video 
-          ref={videoRef} 
-          autoPlay 
-          playsInline 
-          className="w-full h-full object-cover scale-x-[-1]" 
-        />
+  ref={videoRef} 
+  autoPlay 
+  muted 
+  playsInline 
+  className="w-full h-full object-cover scale-x-[-1]" 
+/>
         <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
           <div className="absolute inset-0 bg-slate-950/40"></div>
           <div className="w-[85%] h-[85%] border-2 border-dashed border-white/30 rounded-[50%_50%_40%_40%] relative">
