@@ -67,6 +67,8 @@ export default function DashboardHome() {
         ]);
 
 // ... dentro do loadStats, após receber as respostas da API:
+// --- DENTRO DO LOADSTATS ---
+
 const contributions = contributionsRes.data || [];
 const members = membersRes.data || [];
 const agreements = agreementsRes.data || [];
@@ -74,86 +76,82 @@ const agreements = agreementsRes.data || [];
 let pendingTotalVal = 0;
 const membersDebt = {};
 
-// FUNÇÃO AUXILIAR PARA NORMALIZAR O NOME (Evita duplicados por causa de acento ou maiúscula)
-const getMemberKey = (name) => name?.trim().toUpperCase();
+// 1. PRIMEIRO: Criamos a base com todos os membros e seus Retroativos da Ficha
+members.forEach(m => {
+  const key = m.full_name?.trim().toUpperCase();
+  if (!key) return;
 
-const getMemberObj = (name, phone) => {
-  const key = getMemberKey(name);
-  if (!membersDebt[key]) {
-    membersDebt[key] = { 
-      name, // mantém o nome original para exibição
-      total: 0, 
-      monthly: 0, 
-      retroactive: 0, 
-      agreementInstallments: 0, 
-      count: 0, 
-      phone 
-    };
-  }
-  return membersDebt[key];
-};
+  const retroValue = Number(m.balance_retroactive) || 0;
+  
+  // Criamos o objeto inicial do membro já com o retroativo
+  membersDebt[key] = { 
+    name: m.full_name,
+    phone: m.phone_whatsapp,
+    total: retroValue, 
+    monthly: 0, 
+    retroactive: retroValue, // Aqui garante que o valor da ficha apareça
+    agreementInstallments: 0, 
+    count: 0
+  };
 
-// 1. Processamento das Mensalidades
-// 1. Processamento das Contribuições (Mensalidades + Parcelas de Acordo)
+  pendingTotalVal += retroValue;
+});
+
+// 2. SEGUNDO: Somamos as Contribuições (Mensalidades e Parcelas de Acordo)
 contributions.forEach(c => {
   if (c.status === 'Pendente' || c.status === 'Atrasado') {
     const val = Number(c.value) || 0;
-    pendingTotalVal += val;
-    
     const memberData = c.Member || c.member;
-    const name = memberData?.full_name || 'Não Identificado';
-    const m = getMemberObj(name, memberData?.phone_whatsapp);
+    const key = memberData?.full_name?.trim().toUpperCase();
 
-    // VERIFICAÇÃO: Se a descrição tem "ACORDO" ou o campo type é "Acordo"
-    const isAcordo = c.description?.toUpperCase().includes('ACORDO') || c.type === 'Acordo';
+    if (key && membersDebt[key]) {
+      const isAcordo = c.description?.toUpperCase().includes('ACORDO') || c.type === 'Acordo';
 
-    if (isAcordo) {
-      m.agreementInstallments += val; // Agora preenche a coluna correta!
-    } else {
-      m.monthly += val;
-      m.count += 1;
-    }
+      if (isAcordo) {
+        membersDebt[key].agreementInstallments += val;
+      } else {
+        membersDebt[key].monthly += val;
+        membersDebt[key].count += 1;
+      }
 
-    m.total += val;
-  }
-});
-
-// 2. Processamento dos Acordos (Verifique se o campo é remaining_value ou value)
-agreements.forEach(a => {
-    // Ajuste aqui: tentamos pegar o valor restante ou o valor total do acordo
-    const val = Number(a.remaining_value || a.value || 0); 
-    if (val > 0 && a.status !== 'Pago') {
+      membersDebt[key].total += val;
       pendingTotalVal += val;
-      const memberData = a.Member || a.member;
-      const m = getMemberObj(memberData?.full_name || 'Não Identificado', memberData?.phone_whatsapp);
-      m.agreementInstallments += val;
-      m.total += val;
     }
-});
-
-// 3. Processamento dos Retroativos (Lógica Corrigida)
-members.forEach(m => {
-  const retroValue = Number(m.balance_retroactive) || 0;
-  if (retroValue > 0) {
-    pendingTotalVal += retroValue;
-    // Aqui usamos o mesmo objeto já criado pelas mensalidades
-    const memberObj = getMemberObj(m.full_name, m.phone_whatsapp);
-    memberObj.retroactive += retroValue;
-    memberObj.total += retroValue;
   }
 });
 
-        const income = contributions.filter(c => c.status === 'Pago').reduce((acc, c) => acc + Number(c.value), 0);
-        
-        setStats({ 
-          members: members.length, 
-          active: members.filter(m => m.status === 'Ativo').length, 
-          monthlyIncome: income, 
-          pendingMonth: contributions.filter(c => c.status !== 'Pago').reduce((acc, c) => acc + Number(c.value), 0), 
-          pendingTotal: pendingTotalVal 
-        });
-        
-        setDebtRanking(Object.values(membersDebt).sort((a, b) => b.total - a.total));
+// 3. TERCEIRO: Somamos Acordos Extras (se existirem na rota /agreements)
+agreements.forEach(a => {
+  const val = Number(a.remaining_value || a.value || 0); 
+  const memberData = a.Member || a.member;
+  const key = memberData?.full_name?.trim().toUpperCase();
+
+  if (key && membersDebt[key] && val > 0 && a.status !== 'Pago') {
+    membersDebt[key].agreementInstallments += val;
+    membersDebt[key].total += val;
+    pendingTotalVal += val;
+  }
+});
+
+// --- CÁLCULOS FINAIS DOS CARDS ---
+const income = contributions
+  .filter(c => c.status === 'Pago')
+  .reduce((acc, c) => acc + Number(c.value), 0);
+
+setStats({ 
+  members: members.length, 
+  active: members.filter(m => m.status === 'Ativo').length, 
+  monthlyIncome: income, 
+  pendingMonth: contributions.filter(c => c.status !== 'Pago').reduce((acc, c) => acc + Number(c.value), 0), 
+  pendingTotal: pendingTotalVal 
+});
+
+// Filtramos apenas quem tem dívida > 0 para o Ranking
+const ranking = Object.values(membersDebt)
+  .filter(m => m.total > 0)
+  .sort((a, b) => b.total - a.total);
+
+setDebtRanking(ranking);
 
       } catch (err) {
         console.error("Erro ao carregar dashboard", err);
