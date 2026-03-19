@@ -1,25 +1,35 @@
 import React from 'react';
+import { ShieldCheck, Code2 } from 'lucide-react';
 
 export default function Footer() {
-  return (
-    <footer className="mt-auto pt-8 pb-4 border-t border-slate-800/50 flex flex-col md:flex-row justify-between items-center gap-4 px-8">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 bg-red-900/20 rounded-xl flex items-center justify-center border border-red-900/30">
-          <span className="text-red-500 font-black text-xs italic">7C</span>
-        </div>
-        <div>
-          <p className="text-slate-500 font-bold uppercase text-[8px] tracking-[0.2em] leading-none">Plataforma de Gestão</p>
-          <h3 className="text-white font-black uppercase text-[10px] tracking-widest">TDU - 7 Caveiras</h3>
-        </div>
-      </div>
+  const currentYear = new Date().getFullYear();
 
-      <div className="text-center md:text-right">
-        <p className="text-slate-500 font-medium text-[9px] uppercase tracking-widest">
-          Criado e Desenvolvido por
-        </p>
-        <p className="text-white font-black uppercase text-[12px] tracking-tighter mt-1 group cursor-default">
-          <span className="text-red-600 animate-pulse">●</span> OMAR RODRIGUES <span className="text-slate-500 font-light mx-1">|</span> <span className="text-slate-300">DIRETOR DE TECNOLOGIA</span>
-        </p>
+  return (
+    <footer className="w-full py-8 px-6 border-t border-slate-800 bg-slate-950/50 backdrop-blur-sm mt-auto">
+      <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+        
+        {/* Info Institucional */}
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-red-900/20 flex items-center justify-center border border-red-900/30">
+            <ShieldCheck size={18} className="text-red-600" />
+          </div>
+          <p className="text-[11px] md:text-xs font-bold text-slate-400 uppercase tracking-widest leading-tight">
+            @T.D.U. Zé Pelintra, Exu 7 Caveiras <br className="md:hidden" />
+            <span className="text-slate-500 font-medium">e Maria das 7 Cocadas {currentYear}</span>
+          </p>
+        </div>
+
+        {/* Assinatura do Desenvolvedor */}
+        <div className="flex items-center gap-4">
+          <div className="h-4 w-[1px] bg-slate-800 hidden md:block"></div>
+          <div className="flex items-center gap-2 group">
+            <Code2 size={14} className="text-slate-600 group-hover:text-emerald-500 transition-colors" />
+            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 group-hover:text-white transition-colors">
+              Criado e Desenvolvido por <span className="text-slate-300">Omar Rodrigues</span>
+            </p>
+          </div>
+        </div>
+
       </div>
     </footer>
   );
