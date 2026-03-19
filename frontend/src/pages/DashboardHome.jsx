@@ -66,61 +66,70 @@ export default function DashboardHome() {
           api.get('/agreements')     // Esta rota no seu routes.js já exige auth
         ]);
 
-        const contributions = contributionsRes.data || [];
-        const members = membersRes.data || [];
-        const agreements = agreementsRes.data || [];
+// ... dentro do loadStats, após receber as respostas da API:
+const contributions = contributionsRes.data || [];
+const members = membersRes.data || [];
+const agreements = agreementsRes.data || [];
 
-        let pendingTotalVal = 0;
-        const membersDebt = {};
+let pendingTotalVal = 0;
+const membersDebt = {};
 
-        const getMemberObj = (name, phone) => {
-          if (!membersDebt[name]) {
-            membersDebt[name] = { 
-              name, total: 0, monthly: 0, retroactive: 0, agreementInstallments: 0, count: 0, phone 
-            };
-          }
-          return membersDebt[name];
-        };
+// FUNÇÃO AUXILIAR PARA NORMALIZAR O NOME (Evita duplicados por causa de acento ou maiúscula)
+const getMemberKey = (name) => name?.trim().toUpperCase();
 
-        // Processamento das Mensalidades
-        contributions.forEach(c => {
-          if (c.status === 'Pendente' || c.status === 'Atrasado') {
-            const val = Number(c.value) || 0;
-            pendingTotalVal += val;
-            // Proteção: Tenta pegar Member (Sequelize) ou member (JSON comum)
-            const memberData = c.Member || c.member;
-            const name = memberData?.full_name || 'Não Identificado';
-            const m = getMemberObj(name, memberData?.phone_whatsapp);
-            m.monthly += val;
-            m.total += val;
-            m.count += 1;
-          }
-        });
+const getMemberObj = (name, phone) => {
+  const key = getMemberKey(name);
+  if (!membersDebt[key]) {
+    membersDebt[key] = { 
+      name, // mantém o nome original para exibição
+      total: 0, 
+      monthly: 0, 
+      retroactive: 0, 
+      agreementInstallments: 0, 
+      count: 0, 
+      phone 
+    };
+  }
+  return membersDebt[key];
+};
 
-        // Processamento dos Acordos
-        agreements.forEach(a => {
-            const val = Number(a.remaining_value) || 0; 
-            if (val > 0) {
-              pendingTotalVal += val;
-              const memberData = a.Member || a.member;
-              const name = memberData?.full_name || 'Não Identificado';
-              const m = getMemberObj(name, memberData?.phone_whatsapp);
-              m.agreementInstallments += val;
-              m.total += val;
-            }
-        });
+// 1. Processamento das Mensalidades
+contributions.forEach(c => {
+  if (c.status === 'Pendente' || c.status === 'Atrasado') {
+    const val = Number(c.value) || 0;
+    pendingTotalVal += val;
+    const memberData = c.Member || c.member;
+    const m = getMemberObj(memberData?.full_name || 'Não Identificado', memberData?.phone_whatsapp);
+    m.monthly += val;
+    m.total += val;
+    m.count += 1;
+  }
+});
 
-        // Processamento dos Retroativos dos Membros
-        members.forEach(m => {
-          const retroValue = Number(m.balance_retroactive) || 0;
-          if (retroValue > 0) {
-            pendingTotalVal += retroValue;
-            const name = m.full_name || 'Não Identificado';
-            const memberObj = getMemberObj(name, m.phone_whatsapp);
-            memberObj.retroactive += retroValue;
-            memberObj.total += retroValue;
-          }
-        });
+// 2. Processamento dos Acordos (Verifique se o campo é remaining_value ou value)
+agreements.forEach(a => {
+    // Ajuste aqui: tentamos pegar o valor restante ou o valor total do acordo
+    const val = Number(a.remaining_value || a.value || 0); 
+    if (val > 0 && a.status !== 'Pago') {
+      pendingTotalVal += val;
+      const memberData = a.Member || a.member;
+      const m = getMemberObj(memberData?.full_name || 'Não Identificado', memberData?.phone_whatsapp);
+      m.agreementInstallments += val;
+      m.total += val;
+    }
+});
+
+// 3. Processamento dos Retroativos (Lógica Corrigida)
+members.forEach(m => {
+  const retroValue = Number(m.balance_retroactive) || 0;
+  if (retroValue > 0) {
+    pendingTotalVal += retroValue;
+    // Aqui usamos o mesmo objeto já criado pelas mensalidades
+    const memberObj = getMemberObj(m.full_name, m.phone_whatsapp);
+    memberObj.retroactive += retroValue;
+    memberObj.total += retroValue;
+  }
+});
 
         const income = contributions.filter(c => c.status === 'Pago').reduce((acc, c) => acc + Number(c.value), 0);
         
