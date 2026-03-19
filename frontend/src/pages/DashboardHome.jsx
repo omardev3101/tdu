@@ -1,4 +1,4 @@
-import { Users, AlertCircle, ChevronLeft, ChevronRight, MessageSquare, Trash2, Database, Download, ShieldCheck, Handshake } from 'lucide-react';
+import { Users, AlertCircle, ChevronLeft, ChevronRight, MessageSquare, Trash2, Download, ShieldCheck } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import api from '../services/api';
 
@@ -45,7 +45,7 @@ export default function DashboardHome() {
   const handleNotify = (m) => {
     const msg = `Axé ${m.name}, o TDU informa resumo de débitos:\n\n` +
                 `📅 Mensalidades: R$ ${m.monthly.toLocaleString('pt-BR')}\n` +
-                `🤝 Parcelas Acordo: R$ ${m.agreementInstallments.toLocaleString('pt-BR')}\n` +
+                `🤝 Parcelas Acordo: R$ ${m.agreementInstallments.toLocaleString('pt-BR')} (${m.nextInstallment || 'N/A'})\n` +
                 `⚠️ Retroativo: R$ ${m.retroactive.toLocaleString('pt-BR')}\n` +
                 `*Total Geral: R$ ${m.total.toLocaleString('pt-BR')}*\n\n` +
                 `Por favor, procure a tesouraria para regularizar.`;
@@ -53,127 +53,119 @@ export default function DashboardHome() {
     window.open(`https://wa.me/55${m.phone?.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank');
   };
 
-  // --- CARREGAMENTO DE DADOS ---
+  // --- CARREGAMENTO E PROCESSAMENTO DE DADOS ---
 
   useEffect(() => {
     async function loadStats() {
       try {
         setLoading(true);
-        // CORREÇÃO: Alinhando rotas com o Backend (/admin/)
         const [membersRes, contributionsRes, agreementsRes] = await Promise.all([
           api.get('/admin/members'),
-          api.get('/contributions'), // Esta rota no seu routes.js já exige auth
-          api.get('/agreements')     // Esta rota no seu routes.js já exige auth
+          api.get('/contributions'),
+          api.get('/agreements')
         ]);
 
-// ... dentro do loadStats, após receber as respostas da API:
-// --- DENTRO DO LOADSTATS ---
+        const contributions = contributionsRes.data || [];
+        const members = membersRes.data || [];
+        const agreements = agreementsRes.data || [];
 
-const contributions = contributionsRes.data || [];
-const members = membersRes.data || [];
-const agreements = agreementsRes.data || [];
+        let pendingTotalVal = 0;
+        const membersDebt = {};
 
-let pendingTotalVal = 0;
-const membersDebt = {};
+        // Função interna para organizar os membros por Nome (Chave Única)
+        const getOrCreateMember = (name, phone) => {
+          const key = name?.trim().toUpperCase();
+          if (!key) return null;
+          if (!membersDebt[key]) {
+            membersDebt[key] = { 
+              name, 
+              phone,
+              total: 0, 
+              monthly: 0, 
+              retroactive: 0, 
+              agreementInstallments: 0, 
+              count: 0,
+              nextInstallment: "" 
+            };
+          }
+          return membersDebt[key];
+        };
 
-// 1. PRIMEIRO: Criamos a base com todos os membros e seus Retroativos da Ficha
-members.forEach(m => {
-  const key = m.full_name?.trim().toUpperCase();
-  if (!key) return;
+        // 1. Processar Membros (Pega o Retroativo da Ficha de Cadastro)
+        members.forEach(m => {
+          const retroValue = Number(m.balance_retroactive || 0);
+          const obj = getOrCreateMember(m.full_name, m.phone_whatsapp);
+          if (obj && retroValue > 0) {
+            obj.retroactive = retroValue;
+            obj.total += retroValue;
+            pendingTotalVal += retroValue;
+          }
+        });
 
-  const retroValue = Number(m.balance_retroactive) || 0;
-  
-  // Criamos o objeto inicial do membro já com o retroativo
-  membersDebt[key] = { 
-    name: m.full_name,
-    phone: m.phone_whatsapp,
-    total: retroValue, 
-    monthly: 0, 
-    retroactive: retroValue, // Aqui garante que o valor da ficha apareça
-    agreementInstallments: 0, 
-    count: 0
-  };
+        // 2. Processar Contribuições (Mensalidades + Parcelas de Acordo 1/5, 2/5...)
+        contributions.forEach(c => {
+          if (c.status === 'Pendente' || c.status === 'Atrasado') {
+            const val = Number(c.value) || 0;
+            const memberData = c.Member || c.member;
+            const obj = getOrCreateMember(memberData?.full_name, memberData?.phone_whatsapp);
 
-  pendingTotalVal += retroValue;
-});
+            if (obj) {
+              // Verifica se a descrição contém a palavra ACORDO
+              const isAcordo = c.description?.toUpperCase().includes('ACORDO');
+              
+              if (isAcordo) {
+                // Tenta extrair o "1/5" do texto
+                const parcelaMatch = c.description.match(/(\d+\/\d+)/);
+                const parcelaTexto = parcelaMatch ? parcelaMatch[0] : "";
+                
+                obj.agreementInstallments += val;
+                // Define a próxima parcela como a menor pendente encontrada
+                if (!obj.nextInstallment || (parcelaTexto && parcelaTexto < obj.nextInstallment)) {
+                  obj.nextInstallment = parcelaTexto;
+                }
+              } else {
+                obj.monthly += val;
+                obj.count += 1;
+              }
 
-// 2. SEGUNDO: Somamos as Contribuições (Mensalidades e Parcelas de Acordo)
-// 1. Processamento das Contribuições (Mensalidades + Parcelas de Acordo)
-contributions.forEach(c => {
-  const memberData = c.Member || c.member;
-  const name = memberData?.full_name || 'Não Identificado';
-  const m = getMemberObj(name, memberData?.phone_whatsapp);
+              obj.total += val;
+              pendingTotalVal += val;
+            }
+          }
+        });
 
-  // Identifica se é Acordo pelo texto
-  const isAcordo = c.description?.toUpperCase().includes('ACORDO');
+        // 3. Processar Acordos da Tabela Agreements (Caso existam)
+        agreements.forEach(a => {
+          const val = Number(a.remaining_value || a.value || 0);
+          const memberData = a.Member || a.member;
+          const obj = getOrCreateMember(memberData?.full_name, memberData?.phone_whatsapp);
+          
+          if (obj && val > 0 && a.status !== 'Pago') {
+            obj.agreementInstallments += val;
+            obj.total += val;
+            pendingTotalVal += val;
+          }
+        });
 
-  if (isAcordo) {
-    // Tenta extrair o "1/5" da descrição usando Regex
-    // Procure por algo como "1/5", "2/10", etc.
-    const parcelaMatch = c.description.match(/(\d+\/\d+)/);
-    const parcelaTexto = parcelaMatch ? parcelaMatch[0] : "";
+        // Cálculos dos Cards
+        const income = contributions
+          .filter(c => c.status === 'Pago')
+          .reduce((acc, c) => acc + Number(c.value), 0);
 
-    if (c.status === 'Pendente' || c.status === 'Atrasado') {
-      const val = Number(c.value) || 0;
-      m.agreementInstallments += val;
-      m.total += val;
-      pendingTotalVal += val;
-      
-      // Armazena qual a próxima parcela pendente (a menor encontrada)
-      if (!m.nextInstallment || parcelaTexto < m.nextInstallment) {
-        m.nextInstallment = parcelaTexto;
-      }
-    }
-    
-    // Armazena o total de parcelas (o maior número depois da barra)
-    if (parcelaTexto) {
-      const totalParcelas = parcelaTexto.split('/')[1];
-      m.totalInstallments = totalParcelas;
-    }
-  } else {
-    // Lógica normal para mensalidade
-    if (c.status === 'Pendente' || c.status === 'Atrasado') {
-      const val = Number(c.value) || 0;
-      m.monthly += val;
-      m.count += 1;
-      m.total += val;
-      pendingTotalVal += val;
-    }
-  }
-});
+        setStats({ 
+          members: members.length, 
+          active: members.filter(m => m.status === 'Ativo').length, 
+          monthlyIncome: income, 
+          pendingMonth: contributions.filter(c => c.status !== 'Pago').reduce((acc, c) => acc + Number(c.value), 0), 
+          pendingTotal: pendingTotalVal 
+        });
+        
+        // Ranking: Só exibe quem tem dívida e ordena do maior para o menor
+        const ranking = Object.values(membersDebt)
+          .filter(m => m.total > 0)
+          .sort((a, b) => b.total - a.total);
 
-// 3. TERCEIRO: Somamos Acordos Extras (se existirem na rota /agreements)
-agreements.forEach(a => {
-  const val = Number(a.remaining_value || a.value || 0); 
-  const memberData = a.Member || a.member;
-  const key = memberData?.full_name?.trim().toUpperCase();
-
-  if (key && membersDebt[key] && val > 0 && a.status !== 'Pago') {
-    membersDebt[key].agreementInstallments += val;
-    membersDebt[key].total += val;
-    pendingTotalVal += val;
-  }
-});
-
-// --- CÁLCULOS FINAIS DOS CARDS ---
-const income = contributions
-  .filter(c => c.status === 'Pago')
-  .reduce((acc, c) => acc + Number(c.value), 0);
-
-setStats({ 
-  members: members.length, 
-  active: members.filter(m => m.status === 'Ativo').length, 
-  monthlyIncome: income, 
-  pendingMonth: contributions.filter(c => c.status !== 'Pago').reduce((acc, c) => acc + Number(c.value), 0), 
-  pendingTotal: pendingTotalVal 
-});
-
-// Filtramos apenas quem tem dívida > 0 para o Ranking
-const ranking = Object.values(membersDebt)
-  .filter(m => m.total > 0)
-  .sort((a, b) => b.total - a.total);
-
-setDebtRanking(ranking);
+        setDebtRanking(ranking);
 
       } catch (err) {
         console.error("Erro ao carregar dashboard", err);
@@ -190,7 +182,7 @@ setDebtRanking(ranking);
   if (loading) return (
     <div className="p-20 text-center flex flex-col items-center gap-4">
         <ShieldCheck className="animate-spin text-red-600" size={50} />
-        <div className="text-white font-black uppercase tracking-[0.3em] text-xs">Sincronizando Fichas...</div>
+        <div className="text-white font-black uppercase tracking-[0.3em] text-xs">Sincronizando Fichas Financeiras...</div>
     </div>
   );
 
@@ -209,7 +201,7 @@ setDebtRanking(ranking);
             onClick={handleResetFinanceiro} 
             className="flex items-center gap-2 px-4 py-2 bg-red-600/10 border border-red-600/20 rounded-xl text-[10px] font-black text-red-500 uppercase hover:bg-red-600 hover:text-white transition-all shadow-lg active:scale-95 group"
           >
-            <Trash2 size={14} className="group-hover:animate-bounce" /> Reset Financeiro
+            <Trash2 size={14} className="group-hover:animate-bounce" /> Reset Mensalidades
           </button>
 
           <div className="bg-slate-900 border border-slate-800 px-4 py-2 rounded-xl text-xs font-bold text-slate-400 uppercase tracking-widest font-mono shadow-xl italic">
@@ -268,7 +260,7 @@ setDebtRanking(ranking);
               <tr>
                 <th className="p-6 text-[10px] font-black text-slate-500 uppercase">Membro</th>
                 <th className="p-6 text-[10px] font-black text-slate-500 uppercase text-center">Mensalidades</th>
-                <th className="p-6 text-[10px] font-black text-slate-500 uppercase text-center"> Acordo</th>
+                <th className="p-6 text-[10px] font-black text-slate-500 uppercase text-center">Acordo</th>
                 <th className="p-6 text-[10px] font-black text-slate-500 uppercase text-center">Nº de Parcelas</th>
                 <th className="p-6 text-[10px] font-black text-slate-500 uppercase text-center">Retroativo</th>
                 <th className="p-6 text-[10px] font-black text-slate-500 uppercase text-right">Dívida Total</th>
@@ -276,71 +268,59 @@ setDebtRanking(ranking);
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/50">
-  {currentItems.map((item, i) => (
-    <tr key={i} className="hover:bg-slate-800/40 transition-colors group">
-      <td className="p-6">
-        <div className="flex flex-col">
-          <span className="font-black text-sm uppercase text-slate-200 group-hover:text-red-500 transition-colors">{item.name}</span>
-          <span className="text-[9px] text-slate-500 font-bold uppercase tracking-tighter italic">Posição: {((currentPage - 1) * itemsPerPage) + i + 1}º</span>
-        </div>
-      </td>
-      
-      {/* Mensalidades */}
-      <td className="p-6 text-center">
-        <div className="flex flex-col">
-          <span className="text-xs font-bold text-amber-500">R$ {item.monthly.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-          <span className="text-[8px] font-black text-slate-600 uppercase">{item.count} meses</span>
-        </div>
-      </td>
+              {currentItems.map((item, i) => (
+                <tr key={i} className="hover:bg-slate-800/40 transition-colors group">
+                  <td className="p-6">
+                    <div className="flex flex-col">
+                      <span className="font-black text-sm uppercase text-slate-200 group-hover:text-red-500 transition-colors">{item.name}</span>
+                      <span className="text-[9px] text-slate-500 font-bold uppercase tracking-tighter italic">Posição: {((currentPage - 1) * itemsPerPage) + i + 1}º</span>
+                    </div>
+                  </td>
+                  
+                  <td className="p-6 text-center">
+                    <div className="flex flex-col">
+                      <span className="text-xs font-bold text-amber-500">R$ {item.monthly.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                      <span className="text-[8px] font-black text-slate-600 uppercase">{item.count} meses</span>
+                    </div>
+                  </td>
 
-      {/* Valor do Acordo */}
-      <td className="p-6 text-center">
-        <span className="text-xs font-bold text-emerald-500">
-          {item.agreementInstallments > 0 ? `R$ ${item.agreementInstallments.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '—'}
-        </span>
-      </td>
+                  <td className="p-6 text-center">
+                    <span className="text-xs font-bold text-emerald-500">
+                      {item.agreementInstallments > 0 ? `R$ ${item.agreementInstallments.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '—'}
+                    </span>
+                  </td>
 
-      {/* Nº DE PARCELAS (Dinamismo 1/5, 2/5...) */}
-      <td className="p-6 text-center">
-        <div className="flex flex-col items-center justify-center">
-          {item.nextInstallment ? (
-            <>
-              <span className="text-xs font-black text-slate-300">
-                {item.nextInstallment}
-              </span>
-              <span className="text-[8px] font-bold text-slate-600 uppercase tracking-tighter">
-                Pendente
-              </span>
-            </>
-          ) : (
-            <span className="text-slate-700">—</span>
-          )}
-        </div>
-      </td>
+                  <td className="p-6 text-center">
+                    <div className="flex flex-col items-center justify-center">
+                      {item.nextInstallment ? (
+                        <>
+                          <span className="text-xs font-black text-slate-300">{item.nextInstallment}</span>
+                          <span className="text-[8px] font-bold text-slate-600 uppercase tracking-tighter">Pendente</span>
+                        </>
+                      ) : <span className="text-slate-700">—</span>}
+                    </div>
+                  </td>
 
-      {/* Retroativo */}
-      <td className="p-6 text-center">
-        <span className="text-xs font-bold text-slate-500">
-          {item.retroactive > 0 ? `R$ ${item.retroactive.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '—'}
-        </span>
-      </td>
+                  <td className="p-6 text-center">
+                    <span className="text-xs font-bold text-slate-500">
+                      {item.retroactive > 0 ? `R$ ${item.retroactive.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '—'}
+                    </span>
+                  </td>
 
-      {/* Dívida Total */}
-      <td className="p-6 text-right">
-        <span className="text-sm font-black text-red-500 font-mono italic">
-          R$ {item.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-        </span>
-      </td>
+                  <td className="p-6 text-right">
+                    <span className="text-sm font-black text-red-500 font-mono italic">
+                      R$ {item.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                    </span>
+                  </td>
 
-      {/* Ações */}
-      <td className="p-6 text-center">
-        <button onClick={() => handleNotify(item)} className="p-3 bg-emerald-600/10 text-emerald-500 rounded-2xl hover:bg-emerald-600 hover:text-white transition-all shadow-xl active:scale-90">
-          <MessageSquare size={18} />
-        </button>
-      </td>
-    </tr>
-  ))}
-</tbody>
+                  <td className="p-6 text-center">
+                    <button onClick={() => handleNotify(item)} className="p-3 bg-emerald-600/10 text-emerald-500 rounded-2xl hover:bg-emerald-600 hover:text-white transition-all shadow-xl active:scale-90">
+                      <MessageSquare size={18} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
           </table>
         </div>
       </div>
