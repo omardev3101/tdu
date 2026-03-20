@@ -21,6 +21,14 @@ Member.belongsToMany(ExtraRecord, {
   otherKey: 'extra_record_id'
 });
 
+Member.belongsToMany(ExtraRecord, { 
+  through: ExtraRecordMember, 
+  as: 'extra_records', 
+  foreignKey: 'member_id',
+  otherKey: 'extra_record_id'
+});
+
+
 module.exports = {
   User,
   Member,
