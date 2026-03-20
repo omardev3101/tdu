@@ -1,22 +1,18 @@
 const { DataTypes } = require('sequelize');
-const { sequelize: db } = require('../config/database'); 
+const { sequelize: db } = require('../config/database');
 
 const ExtraRecordMember = db.define('ExtraRecordMember', {
-  // Definimos explicitamente para o Sequelize não tentar "adivinhar"
   extra_record_id: {
     type: DataTypes.INTEGER,
-    primaryKey: true, // Se for uma tabela de ligação, os dois juntos são a chave
-    allowNull: false
+    references: { model: 'extra_records', key: 'id' }
   },
   member_id: {
     type: DataTypes.INTEGER,
-    primaryKey: true,
-    allowNull: false
+    references: { model: 'members', key: 'id' }
   }
 }, { 
-  tableName: 'extra_record_members',
-  timestamps: false,
-  underscored: true
+  tableName: 'extra_record_members', // Nome exato da tabela no seu MySQL
+  timestamps: false 
 });
 
 module.exports = ExtraRecordMember;
