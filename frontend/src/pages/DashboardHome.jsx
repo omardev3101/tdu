@@ -1,6 +1,20 @@
-import { Users, AlertCircle, ChevronLeft, ChevronRight, MessageSquare, Trash2, Download, ShieldCheck } from 'lucide-react';
+import { Users, AlertCircle, ChevronLeft, ChevronRight, MessageSquare, Trash2, Download, ShieldCheck, ArrowUpCircle, Heart, Hammer, BadgeDollarSign } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import api from '../services/api';
+
+export default function DashboardHome() {
+  const [stats, setStats] = useState({ 
+    members: 0, 
+    active: 0, 
+    monthlyIncome: 0,
+    pendingMonth: 0,
+    pendingTotal: 0 
+  });
+  const [debtRanking, setDebtRanking] = useState([]);
+  const [recentEntries, setRecentEntries] = useState([]); 
+  const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   // --- AÇÕES ---
   const handleResetFinanceiro = async () => {
@@ -30,23 +44,9 @@ import api from '../services/api';
   };
 
   const handleNotify = (m) => {
-    const msg = `Axé ${m.name}, sua dívida total é R$ ${m.total.toFixed(2)}`;
+    const msg = `Axé ${m.name}, sua dívida total é R$ ${m.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
     window.open(`https://wa.me/55${m.phone?.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank');
   };
-
-export default function DashboardHome() {
-  const [stats, setStats] = useState({ 
-    members: 0, 
-    active: 0, 
-    monthlyIncome: 0,
-    pendingMonth: 0,
-    pendingTotal: 0 
-  });
-  const [debtRanking, setDebtRanking] = useState([]);
-  const [recentEntries, setRecentEntries] = useState([]); // NOVO ESTADO PARA ENTRADAS
-  const [loading, setLoading] = useState(true);
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
 
   // --- CARREGAMENTO E PROCESSAMENTO DE DADOS ---
   useEffect(() => {
@@ -54,6 +54,7 @@ export default function DashboardHome() {
       try {
         setLoading(true);
         
+        // Chamadas individuais com tratamento de erro por rota
         const fetchMembers = api.get('/admin/members').catch(() => ({ data: [] }));
         const fetchContributions = api.get('/contributions').catch(() => ({ data: [] }));
         const fetchAgreements = api.get('/agreements').catch(() => ({ data: [] }));
@@ -74,7 +75,7 @@ export default function DashboardHome() {
 
         let pendingTotalVal = 0;
         const membersDebt = {};
-        const entries = []; // Array temporário para a tabela de entradas
+        const entries = []; 
 
         const getOrCreateMember = (name, phone) => {
           const key = name?.trim().toUpperCase();
@@ -88,20 +89,32 @@ export default function DashboardHome() {
           return membersDebt[key];
         };
 
-        // 1. PROCESSAR CONTRIBUIÇÕES (Mensalidades e Acordos Pagos)
+        // 1. Processar Retroativos dos Membros
+        members.forEach(m => {
+          const retroValue = Number(m.balance_retroactive || 0);
+          const obj = getOrCreateMember(m.full_name, m.phone_whatsapp);
+          if (obj && retroValue > 0) {
+            obj.retroactive = retroValue;
+            obj.total += retroValue;
+            pendingTotalVal += retroValue;
+          }
+        });
+
+        // 2. Processar Contribuições (Dívidas e Receita Mensal)
         let monthlyContributionsIncome = 0;
         contributions.forEach(c => {
           const val = Number(c.value) || 0;
-          
+          const memberData = c.Member || c.member;
+          const obj = getOrCreateMember(memberData?.full_name, memberData?.phone_whatsapp);
+
           if (c.status === 'Pago') {
             const payDate = new Date(c.payment_date || c.updated_at);
             if (payDate.getMonth() === currentMonth && payDate.getFullYear() === currentYear) {
               monthlyContributionsIncome += val;
               
-              // Adiciona ao fluxo de entradas
               entries.push({
                 id: `cont-${c.id}`,
-                origin: c.Member?.full_name || 'Membro',
+                origin: memberData?.full_name || 'Membro',
                 description: c.description || 'Mensalidade',
                 value: val,
                 date: payDate,
@@ -109,18 +122,25 @@ export default function DashboardHome() {
               });
             }
           } else {
-            // Lógica de dívida (Ranking)
-            const obj = getOrCreateMember(c.Member?.full_name, c.Member?.phone_whatsapp);
             if (obj) {
+              const isAcordo = c.description?.toUpperCase().includes('ACORDO');
+              if (isAcordo) {
+                obj.agreementInstallments += val;
+                const parcelaMatch = c.description.match(/(\d+\/\d+)/);
+                if (parcelaMatch && (!obj.nextInstallment || parcelaMatch[0] < obj.nextInstallment)) {
+                  obj.nextInstallment = parcelaMatch[0];
+                }
+              } else {
+                obj.monthly += val;
+                obj.count += 1;
+              }
               obj.total += val;
               pendingTotalVal += val;
-              if (c.description?.toUpperCase().includes('ACORDO')) obj.agreementInstallments += val;
-              else { obj.monthly += val; obj.count += 1; }
             }
           }
         });
 
-        // 2. PROCESSAR REGISTROS EXTRAS (Doações e Trabalhos)
+        // 3. Processar Doações e Trabalhos Extras (Receita)
         let extraIncome = 0;
         extraRecords.forEach(r => {
           const val = Number(r.value) || 0;
@@ -129,19 +149,31 @@ export default function DashboardHome() {
           if (rDate.getMonth() === currentMonth && rDate.getFullYear() === currentYear) {
             extraIncome += val;
             
-            // Adiciona ao fluxo de entradas
             entries.push({
               id: `extra-${r.id}`,
-              origin: r.external_donor || r.participants?.[0]?.full_name || 'Doador',
+              origin: r.external_donor || (r.participants && r.participants[0]?.full_name) || 'Doador Externo',
               description: r.description,
               value: val,
               date: rDate,
-              type: r.type // 'Doação' ou 'Trabalho Extra'
+              type: r.type 
             });
           }
         });
 
-        // Ordenar entradas por data (mais recente primeiro)
+        // 4. Processar Acordos Pendentes (Dívidas)
+        agreements.forEach(a => {
+          if (a.status !== 'Finalizado' && a.status !== 'Pago') {
+            const val = Number(a.remaining_value || 0);
+            const memberData = a.Member || a.member;
+            const obj = getOrCreateMember(memberData?.full_name, memberData?.phone_whatsapp);
+            if (obj && val > 0) {
+              obj.agreementInstallments += val;
+              obj.total += val;
+              pendingTotalVal += val;
+            }
+          }
+        });
+
         setRecentEntries(entries.sort((a, b) => b.date - a.date));
 
         setStats({ 
@@ -232,15 +264,15 @@ export default function DashboardHome() {
         </div>
       </div>
 
-      {/* NOVAR TABELA: FLUXO DE ENTRADAS DO MÊS */}
+      {/* TABELA: FLUXO DE ENTRADAS DO MÊS */}
       <div className="bg-slate-900 border border-slate-800 rounded-[40px] overflow-hidden shadow-2xl">
         <div className="p-8 border-b border-slate-800 bg-emerald-600/5 flex justify-between items-center">
-           <h3 className="text-white font-black uppercase text-sm flex items-center gap-2 tracking-widest italic">
-             <ArrowUpCircle size={18} className="text-emerald-500" /> Fluxo de Entradas (Mês Atual)
-           </h3>
-           <span className="text-[10px] bg-emerald-500/10 text-emerald-500 px-3 py-1 rounded-full font-black">
-             TOTAL: R$ {stats.monthlyIncome.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-           </span>
+            <h3 className="text-white font-black uppercase text-sm flex items-center gap-2 tracking-widest italic">
+              <ArrowUpCircle size={18} className="text-emerald-500" /> Fluxo de Entradas (Mês Atual)
+            </h3>
+            <span className="text-[10px] bg-emerald-500/10 text-emerald-500 px-3 py-1 rounded-full font-black uppercase">
+              Total Acumulado: R$ {stats.monthlyIncome.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+            </span>
         </div>
         <div className="overflow-x-auto max-h-[400px] overflow-y-auto custom-scrollbar">
           <table className="w-full text-left">
@@ -255,7 +287,7 @@ export default function DashboardHome() {
             </thead>
             <tbody className="divide-y divide-slate-800/50">
               {recentEntries.length === 0 ? (
-                <tr><td colSpan="5" className="p-10 text-center text-slate-600 font-black uppercase text-xs">Nenhuma entrada registrada este mês</td></tr>
+                <tr><td colSpan="5" className="p-10 text-center text-slate-600 font-black uppercase text-xs tracking-widest">Nenhuma entrada registrada este mês</td></tr>
               ) : recentEntries.map((entry) => (
                 <tr key={entry.id} className="hover:bg-slate-800/40 transition-colors">
                   <td className="p-6 text-xs font-mono text-slate-500">
@@ -288,11 +320,11 @@ export default function DashboardHome() {
         </div>
       </div>
 
-      {/* Tabela de Ranking */}
+      {/* Tabela de Ranking (Cobrança) */}
       <div className="bg-slate-900 border border-slate-800 rounded-[40px] overflow-hidden shadow-2xl">
         <div className="p-8 border-b border-slate-800 flex flex-col sm:flex-row justify-between items-center gap-4 bg-black/20">
           <h3 className="text-white font-black uppercase text-sm flex items-center gap-2 tracking-widest italic">
-            <AlertCircle size={18} className="text-red-600" /> Cobrança Prioritária
+            <AlertCircle size={18} className="text-red-600" /> Cobrança Prioritária (Inadimplência)
           </h3>
           <div className="flex items-center gap-3">
             <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} className="p-2 bg-slate-800 rounded-lg text-white disabled:opacity-20" disabled={currentPage === 1}><ChevronLeft size={16}/></button>
@@ -308,7 +340,7 @@ export default function DashboardHome() {
                 <th className="p-6 text-[10px] font-black text-slate-500 uppercase">Membro</th>
                 <th className="p-6 text-[10px] font-black text-slate-500 uppercase text-center">Mensalidades</th>
                 <th className="p-6 text-[10px] font-black text-slate-500 uppercase text-center">Acordo</th>
-                <th className="p-6 text-[10px] font-black text-slate-500 uppercase text-center">Nº de Parcelas</th>
+                <th className="p-6 text-[10px] font-black text-slate-500 uppercase text-center">Próx. Parcela</th>
                 <th className="p-6 text-[10px] font-black text-slate-500 uppercase text-center">Retroativo</th>
                 <th className="p-6 text-[10px] font-black text-slate-500 uppercase text-right">Dívida Total</th>
                 <th className="p-6 text-[10px] font-black text-slate-500 uppercase text-center">Ações</th>
