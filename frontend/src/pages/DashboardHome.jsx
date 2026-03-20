@@ -1,30 +1,50 @@
-import { Users, AlertCircle, ChevronLeft, ChevronRight, MessageSquare, Trash2, Download, ShieldCheck } from 'lucide-react';
+import {
+  Users,
+  AlertCircle,
+  ChevronLeft,
+  ChevronRight,
+  MessageSquare,
+  Trash2,
+  Download,
+  ShieldCheck
+} from 'lucide-react';
+
 import { useEffect, useState } from 'react';
 import api from '../services/api';
 
+import {
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  Legend,
+  ResponsiveContainer
+} from 'recharts';
+
 export default function DashboardHome() {
-  const [stats, setStats] = useState({ 
-    members: 0, 
-    active: 0, 
+  const [stats, setStats] = useState({
+    members: 0,
+    active: 0,
     monthlyIncome: 0,
     pendingMonth: 0,
-    pendingTotal: 0 
+    pendingTotal: 0
   });
+
+  const [chartData, setChartData] = useState([]);
   const [debtRanking, setDebtRanking] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
+
   const itemsPerPage = 10;
 
-  // --- FUNÇÕES DE AÇÃO ---
-
+  // --- AÇÕES ---
   const handleResetFinanceiro = async () => {
-    if (window.confirm("⚠️ ATENÇÃO: Deseja deletar TODAS as mensalidades? Esta ação é irreversível!")) {
+    if (window.confirm("⚠️ Deseja deletar TODAS as mensalidades?")) {
       try {
         await api.delete('/contributions/reset');
         window.location.reload();
-      } catch (err) { 
-        console.error(err);
-        alert("Erro ao limpar dados financeiros."); 
+      } catch (err) {
+        alert("Erro ao limpar dados.");
       }
     }
   };
@@ -35,295 +55,221 @@ export default function DashboardHome() {
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `tdu_backup_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.sql`);
+      link.setAttribute('download', `backup_${Date.now()}.sql`);
       document.body.appendChild(link);
       link.click();
       link.remove();
-    } catch (err) { alert("Erro ao processar backup."); }
+    } catch {
+      alert("Erro no backup");
+    }
   };
 
   const handleNotify = (m) => {
-    const msg = `Axé ${m.name}, o TDU informa resumo de débitos:\n\n` +
-                `📅 Mensalidades: R$ ${m.monthly.toLocaleString('pt-BR')}\n` +
-                `🤝 Parcelas Acordo: R$ ${m.agreementInstallments.toLocaleString('pt-BR')} (${m.nextInstallment || 'N/A'})\n` +
-                `⚠️ Retroativo: R$ ${m.retroactive.toLocaleString('pt-BR')}\n` +
-                `*Total Geral: R$ ${m.total.toLocaleString('pt-BR')}*\n\n` +
-                `Por favor, procure a tesouraria para regularizar.`;
-    
+    const msg = `Axé ${m.name}, sua dívida total é R$ ${m.total.toFixed(2)}`;
     window.open(`https://wa.me/55${m.phone?.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank');
   };
 
-  // --- CARREGAMENTO E PROCESSAMENTO DE DADOS ---
-
+  // --- LOAD ---
   useEffect(() => {
     async function loadStats() {
       try {
         setLoading(true);
-        const [membersRes, contributionsRes, agreementsRes] = await Promise.all([
+
+        const [membersRes, contributionsRes, agreementsRes, extraRecordsRes] = await Promise.all([
           api.get('/admin/members'),
           api.get('/contributions'),
-          api.get('/agreements')
+          api.get('/agreements'),
+          api.get('/admin/extra-records')
         ]);
 
-        const contributions = contributionsRes.data || [];
         const members = membersRes.data || [];
+        const contributions = contributionsRes.data || [];
         const agreements = agreementsRes.data || [];
+        const extraRecords = extraRecordsRes.data || [];
 
-        let pendingTotalVal = 0;
+        const currentMonth = new Date().getMonth();
+        const currentYear = new Date().getFullYear();
+
+        // --- RECEITA ---
+        const contributionsIncome = contributions
+          .filter(c => {
+            if (c.status !== 'Pago') return false;
+            const d = new Date(c.payment_date || c.created_at);
+            return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+          })
+          .reduce((acc, c) => acc + Number(c.value), 0);
+
+        const extraIncome = extraRecords
+          .filter(r => {
+            const d = new Date(r.date || r.created_at);
+            return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+          })
+          .reduce((acc, r) => acc + Number(r.value || 0), 0);
+
+        const totalIncome = contributionsIncome + extraIncome;
+
+        // --- GRÁFICO ---
+        setChartData([
+          { name: 'Mensalidades', value: contributionsIncome },
+          { name: 'Extras', value: extraIncome }
+        ]);
+
+        // --- DÍVIDAS ---
+        let pendingTotal = 0;
         const membersDebt = {};
 
-        // Função interna para organizar os membros por Nome (Chave Única)
-        const getOrCreateMember = (name, phone) => {
-          const key = name?.trim().toUpperCase();
-          if (!key) return null;
+        const getMember = (name, phone) => {
+          const key = name?.toUpperCase();
           if (!membersDebt[key]) {
-            membersDebt[key] = { 
-              name, 
+            membersDebt[key] = {
+              name,
               phone,
-              total: 0, 
-              monthly: 0, 
-              retroactive: 0, 
-              agreementInstallments: 0, 
-              count: 0,
-              nextInstallment: "" 
+              total: 0,
+              monthly: 0,
+              retroactive: 0,
+              agreementInstallments: 0,
+              count: 0
             };
           }
           return membersDebt[key];
         };
 
-        // 1. Processar Membros (Pega o Retroativo da Ficha de Cadastro)
         members.forEach(m => {
-          const retroValue = Number(m.balance_retroactive || 0);
-          const obj = getOrCreateMember(m.full_name, m.phone_whatsapp);
-          if (obj && retroValue > 0) {
-            obj.retroactive = retroValue;
-            obj.total += retroValue;
-            pendingTotalVal += retroValue;
+          const obj = getMember(m.full_name, m.phone_whatsapp);
+          const retro = Number(m.balance_retroactive || 0);
+
+          if (retro > 0) {
+            obj.retroactive += retro;
+            obj.total += retro;
+            pendingTotal += retro;
           }
         });
 
-        // 2. Processar Contribuições (Mensalidades + Parcelas de Acordo 1/5, 2/5...)
         contributions.forEach(c => {
-          if (c.status === 'Pendente' || c.status === 'Atrasado') {
-            const val = Number(c.value) || 0;
-            const memberData = c.Member || c.member;
-            const obj = getOrCreateMember(memberData?.full_name, memberData?.phone_whatsapp);
+          if (c.status !== 'Pago') {
+            const obj = getMember(c.Member?.full_name, c.Member?.phone_whatsapp);
+            const val = Number(c.value);
 
-            if (obj) {
-              // Verifica se a descrição contém a palavra ACORDO
-              const isAcordo = c.description?.toUpperCase().includes('ACORDO');
-              
-              if (isAcordo) {
-                // Tenta extrair o "1/5" do texto
-                const parcelaMatch = c.description.match(/(\d+\/\d+)/);
-                const parcelaTexto = parcelaMatch ? parcelaMatch[0] : "";
-                
-                obj.agreementInstallments += val;
-                // Define a próxima parcela como a menor pendente encontrada
-                if (!obj.nextInstallment || (parcelaTexto && parcelaTexto < obj.nextInstallment)) {
-                  obj.nextInstallment = parcelaTexto;
-                }
-              } else {
-                obj.monthly += val;
-                obj.count += 1;
-              }
-
-              obj.total += val;
-              pendingTotalVal += val;
-            }
-          }
-        });
-
-        // 3. Processar Acordos da Tabela Agreements (Caso existam)
-        agreements.forEach(a => {
-          const val = Number(a.remaining_value || a.value || 0);
-          const memberData = a.Member || a.member;
-          const obj = getOrCreateMember(memberData?.full_name, memberData?.phone_whatsapp);
-          
-          if (obj && val > 0 && a.status !== 'Pago') {
-            obj.agreementInstallments += val;
+            obj.monthly += val;
             obj.total += val;
-            pendingTotalVal += val;
+            obj.count++;
+            pendingTotal += val;
           }
         });
 
-        // Cálculos dos Cards
-        const income = contributions
-          .filter(c => c.status === 'Pago')
-          .reduce((acc, c) => acc + Number(c.value), 0);
+        agreements.forEach(a => {
+          const obj = getMember(a.Member?.full_name, a.Member?.phone_whatsapp);
+          const val = Number(a.value || 0);
 
-        setStats({ 
-          members: members.length, 
-          active: members.filter(m => m.status === 'Ativo').length, 
-          monthlyIncome: income, 
-          pendingMonth: contributions.filter(c => c.status !== 'Pago').reduce((acc, c) => acc + Number(c.value), 0), 
-          pendingTotal: pendingTotalVal 
+          obj.agreementInstallments += val;
+          obj.total += val;
+          pendingTotal += val;
         });
-        
-        // Ranking: Só exibe quem tem dívida e ordena do maior para o menor
+
         const ranking = Object.values(membersDebt)
           .filter(m => m.total > 0)
           .sort((a, b) => b.total - a.total);
 
         setDebtRanking(ranking);
 
+        setStats({
+          members: members.length,
+          active: members.filter(m => m.status === 'Ativo').length,
+          monthlyIncome: totalIncome,
+          pendingTotal
+        });
+
       } catch (err) {
-        console.error("Erro ao carregar dashboard", err);
+        console.error(err);
       } finally {
         setLoading(false);
       }
     }
+
     loadStats();
   }, []);
 
   const totalPages = Math.ceil(debtRanking.length / itemsPerPage);
   const currentItems = debtRanking.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  if (loading) return (
-    <div className="p-20 text-center flex flex-col items-center gap-4">
-        <ShieldCheck className="animate-spin text-red-600" size={50} />
-        <div className="text-white font-black uppercase tracking-[0.3em] text-xs">Sincronizando Fichas Financeiras...</div>
-    </div>
-  );
+  if (loading) return <div className="p-10 text-white">Carregando...</div>;
 
   return (
-    <div className="p-8 space-y-8 text-slate-200">
-      
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-black text-white uppercase tracking-tighter italic">Gestão Operacional</h1>
-          <p className="text-slate-500 font-medium uppercase text-[10px] tracking-[0.2em]">Painel de Controle TDU</p>
-        </div>
-        
-        <div className="flex items-center gap-3">
-          <button 
-            onClick={handleResetFinanceiro} 
-            className="flex items-center gap-2 px-4 py-2 bg-red-600/10 border border-red-600/20 rounded-xl text-[10px] font-black text-red-500 uppercase hover:bg-red-600 hover:text-white transition-all shadow-lg active:scale-95 group"
-          >
-            <Trash2 size={14} className="group-hover:animate-bounce" /> Reset Mensalidades
-          </button>
+    <div className="p-8 text-white space-y-8">
 
-          <div className="bg-slate-900 border border-slate-800 px-4 py-2 rounded-xl text-xs font-bold text-slate-400 uppercase tracking-widest font-mono shadow-xl italic">
-            {new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
-          </div>
-        </div>
+      {/* HEADER */}
+      <div className="flex justify-between">
+        <h1 className="text-2xl font-black">Dashboard</h1>
+        <button onClick={handleManualBackup}>Backup</button>
+        <button onClick={handleResetFinanceiro} className="bg-red-600 px-4 py-2 rounded-lg text-white">
+          Reset Financeiro  </button>
       </div>
 
-      {/* Cards de Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-slate-900 p-6 rounded-[32px] border border-slate-800 shadow-2xl relative overflow-hidden group">
-          <span className="text-slate-500 font-black text-[10px] uppercase block mb-1 tracking-widest">Membros Ativos</span>
-          <div className="text-4xl font-black text-white">{stats.active}</div>
-          <Users className="absolute -right-2 -bottom-2 text-slate-800/20" size={70} />
-        </div>
-        
-        <div className="bg-slate-900 p-6 rounded-[32px] border border-slate-800 shadow-2xl border-l-emerald-600/50">
-          <span className="text-emerald-500 font-black text-[10px] uppercase block mb-1 tracking-widest">Receita (Mês)</span>
-          <div className="text-4xl font-black text-white">R$ {stats.monthlyIncome.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
-        </div>
-
-        <div className="bg-slate-900 p-6 rounded-[32px] border border-slate-800 shadow-2xl border-l-red-600/50">
-          <span className="text-red-500 font-black text-[10px] uppercase block mb-1 tracking-widest">Dívida Total</span>
-          <div className="text-4xl font-black text-white">R$ {stats.pendingTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
-        </div>
-
-        <div className="bg-slate-900 p-6 rounded-[32px] border border-blue-900 shadow-2xl flex justify-between items-center border-l-blue-600">
-          <div>
-            <span className="text-blue-500 font-black text-[10px] uppercase block mb-1 flex items-center gap-2 tracking-widest">
-              <ShieldCheck size={12} /> Backup
-            </span>
-            <div className="text-xl font-black text-white italic uppercase tracking-tighter">Segurança</div>
-          </div>
-          <button onClick={handleManualBackup} className="p-4 bg-blue-600/10 text-blue-500 rounded-2xl hover:bg-blue-600 hover:text-white transition-all shadow-xl active:scale-95">
-            <Download size={20} />
-          </button>
-        </div>
+      {/* CARDS */}
+      <div className="grid grid-cols-4 gap-4">
+        <div>Membros: {stats.members}</div>
+        <div>Ativos: {stats.active}</div>
+        <div>Receita: R$ {stats.monthlyIncome.toFixed(2)}</div>
+        <div>Dívida: R$ {stats.pendingTotal.toFixed(2)}</div>
       </div>
 
-      {/* Tabela de Ranking */}
-      <div className="bg-slate-900 border border-slate-800 rounded-[40px] overflow-hidden shadow-2xl">
-        <div className="p-8 border-b border-slate-800 flex flex-col sm:flex-row justify-between items-center gap-4 bg-black/20">
-          <h3 className="text-white font-black uppercase text-sm flex items-center gap-2 tracking-widest italic">
-            <AlertCircle size={18} className="text-red-600" /> Cobrança Prioritária
-          </h3>
-          <div className="flex items-center gap-3">
-            <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} className="p-2 bg-slate-800 rounded-lg text-white disabled:opacity-20" disabled={currentPage === 1}><ChevronLeft size={16}/></button>
-            <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest">{currentPage} / {totalPages || 1}</span>
-            <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} className="p-2 bg-slate-800 rounded-lg text-white disabled:opacity-20" disabled={currentPage === totalPages || totalPages === 0}><ChevronRight size={16}/></button>
-          </div>
-        </div>
-        
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead className="bg-black/40">
-              <tr>
-                <th className="p-6 text-[10px] font-black text-slate-500 uppercase">Membro</th>
-                <th className="p-6 text-[10px] font-black text-slate-500 uppercase text-center">Mensalidades</th>
-                <th className="p-6 text-[10px] font-black text-slate-500 uppercase text-center">Acordo</th>
-                <th className="p-6 text-[10px] font-black text-slate-500 uppercase text-center">Nº de Parcelas</th>
-                <th className="p-6 text-[10px] font-black text-slate-500 uppercase text-center">Retroativo</th>
-                <th className="p-6 text-[10px] font-black text-slate-500 uppercase text-right">Dívida Total</th>
-                <th className="p-6 text-[10px] font-black text-slate-500 uppercase text-center">Ações</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/50">
-              {currentItems.map((item, i) => (
-                <tr key={i} className="hover:bg-slate-800/40 transition-colors group">
-                  <td className="p-6">
-                    <div className="flex flex-col">
-                      <span className="font-black text-sm uppercase text-slate-200 group-hover:text-red-500 transition-colors">{item.name}</span>
-                      <span className="text-[9px] text-slate-500 font-bold uppercase tracking-tighter italic">Posição: {((currentPage - 1) * itemsPerPage) + i + 1}º</span>
-                    </div>
-                  </td>
-                  
-                  <td className="p-6 text-center">
-                    <div className="flex flex-col">
-                      <span className="text-xs font-bold text-amber-500">R$ {item.monthly.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                      <span className="text-[8px] font-black text-slate-600 uppercase">{item.count} meses</span>
-                    </div>
-                  </td>
-
-                  <td className="p-6 text-center">
-                    <span className="text-xs font-bold text-emerald-500">
-                      {item.agreementInstallments > 0 ? `R$ ${item.agreementInstallments.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '—'}
-                    </span>
-                  </td>
-
-                  <td className="p-6 text-center">
-                    <div className="flex flex-col items-center justify-center">
-                      {item.nextInstallment ? (
-                        <>
-                          <span className="text-xs font-black text-slate-300">{item.nextInstallment}</span>
-                          <span className="text-[8px] font-bold text-slate-600 uppercase tracking-tighter">Pendente</span>
-                        </>
-                      ) : <span className="text-slate-700">—</span>}
-                    </div>
-                  </td>
-
-                  <td className="p-6 text-center">
-                    <span className="text-xs font-bold text-slate-500">
-                      {item.retroactive > 0 ? `R$ ${item.retroactive.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '—'}
-                    </span>
-                  </td>
-
-                  <td className="p-6 text-right">
-                    <span className="text-sm font-black text-red-500 font-mono italic">
-                      R$ {item.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </span>
-                  </td>
-
-                  <td className="p-6 text-center">
-                    <button onClick={() => handleNotify(item)} className="p-3 bg-emerald-600/10 text-emerald-500 rounded-2xl hover:bg-emerald-600 hover:text-white transition-all shadow-xl active:scale-90">
-                      <MessageSquare size={18} />
-                    </button>
-                  </td>
-                </tr>
+      {/* GRÁFICO */}
+      <div className="bg-slate-900 p-6 rounded-xl">
+        <h2 className="mb-4">Receita do Mês</h2>
+        <ResponsiveContainer width="100%" height={300}>
+          <PieChart>
+            <Pie
+              data={chartData}
+              dataKey="value"
+              nameKey="name"
+              outerRadius={100}
+              label
+            >
+              {chartData.map((_, index) => (
+                <Cell key={index} />
               ))}
-            </tbody>
-          </table>
-        </div>
+            </Pie>
+            <Tooltip />
+            <Legend />
+          </PieChart>
+        </ResponsiveContainer>
       </div>
+
+      {/* TABELA */}
+      <table className="w-full">
+        <thead>
+          <tr>
+            <th>Nome</th>
+            <th>Dívida</th>
+            <th>Ação</th>
+          </tr>
+        </thead>
+        <tbody>
+          {currentItems.map((m, i) => (
+            <tr key={i}>
+              <td>{m.name}</td>
+              <td>R$ {m.total.toFixed(2)}</td>
+              <td>
+                <button onClick={() => handleNotify(m)}>
+                  <MessageSquare size={16} />
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      {/* PAGINAÇÃO */}
+      <div className="flex gap-2">
+        <button onClick={() => setCurrentPage(p => p - 1)} disabled={currentPage === 1}>
+          <ChevronLeft />
+        </button>
+        <span>{currentPage} / {totalPages}</span>
+        <button onClick={() => setCurrentPage(p => p + 1)} disabled={currentPage === totalPages}>
+          <ChevronRight />
+        </button>
+      </div>
+
     </div>
   );
 }

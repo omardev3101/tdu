@@ -7,11 +7,11 @@
   },
   "type": "module",
   "scripts": {
-  "dev": "vite --host 0.0.0.0", 
-  "build": "vite build",
-  "lint": "eslint .",
-  "preview": "vite preview --host 0.0.0.0"
-},
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "lint": "eslint .",
+    "preview": "vite preview --host 0.0.0.0"
+  },
   "dependencies": {
     "@tailwindcss/postcss": "^4.2.1",
     "axios": "^1.13.6",
@@ -23,7 +23,8 @@
     "react-hook-form": "^7.71.2",
     "react-input-mask": "^2.0.4",
     "react-router-dom": "^7.13.1",
-    "react-to-print": "^3.3.0"
+    "react-to-print": "^3.3.0",
+    "recharts": "^3.8.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
