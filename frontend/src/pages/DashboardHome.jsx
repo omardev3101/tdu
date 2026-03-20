@@ -54,7 +54,6 @@ export default function DashboardHome() {
       try {
         setLoading(true);
         
-        // Chamadas individuais com tratamento de erro por rota
         const fetchMembers = api.get('/admin/members').catch(() => ({ data: [] }));
         const fetchContributions = api.get('/contributions').catch(() => ({ data: [] }));
         const fetchAgreements = api.get('/agreements').catch(() => ({ data: [] }));
@@ -108,7 +107,10 @@ export default function DashboardHome() {
           const obj = getOrCreateMember(memberData?.full_name, memberData?.phone_whatsapp);
 
           if (c.status === 'Pago') {
+            // AJUSTE: Pegar a data que foi pago OU a última atualização
             const payDate = new Date(c.payment_date || c.updated_at);
+            
+            // Verifica se o pagamento ocorreu no mês atual
             if (payDate.getMonth() === currentMonth && payDate.getFullYear() === currentYear) {
               monthlyContributionsIncome += val;
               
@@ -122,6 +124,7 @@ export default function DashboardHome() {
               });
             }
           } else {
+            // Se NÃO está pago, entra no Ranking de Dívidas
             if (obj) {
               const isAcordo = c.description?.toUpperCase().includes('ACORDO');
               if (isAcordo) {
@@ -160,7 +163,7 @@ export default function DashboardHome() {
           }
         });
 
-        // 4. Processar Acordos Pendentes (Dívidas)
+        // 4. Processar Acordos Pendentes (Dívidas que não geraram parcelas ainda)
         agreements.forEach(a => {
           if (a.status !== 'Finalizado' && a.status !== 'Pago') {
             const val = Number(a.remaining_value || 0);
@@ -174,6 +177,7 @@ export default function DashboardHome() {
           }
         });
 
+        // Ordenar Fluxo de Entradas por data (mais recente primeiro)
         setRecentEntries(entries.sort((a, b) => b.date - a.date));
 
         setStats({ 
@@ -270,8 +274,8 @@ export default function DashboardHome() {
             <h3 className="text-white font-black uppercase text-sm flex items-center gap-2 tracking-widest italic">
               <ArrowUpCircle size={18} className="text-emerald-500" /> Fluxo de Entradas (Mês Atual)
             </h3>
-            <span className="text-[10px] bg-emerald-500/10 text-emerald-500 px-3 py-1 rounded-full font-black uppercase">
-              Total Acumulado: R$ {stats.monthlyIncome.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+            <span className="text-[10px] bg-emerald-500/10 text-emerald-500 px-3 py-1 rounded-full font-black uppercase tracking-widest">
+              Recebido no Mês: R$ {stats.monthlyIncome.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </span>
         </div>
         <div className="overflow-x-auto max-h-[400px] overflow-y-auto custom-scrollbar">
@@ -287,7 +291,7 @@ export default function DashboardHome() {
             </thead>
             <tbody className="divide-y divide-slate-800/50">
               {recentEntries.length === 0 ? (
-                <tr><td colSpan="5" className="p-10 text-center text-slate-600 font-black uppercase text-xs tracking-widest">Nenhuma entrada registrada este mês</td></tr>
+                <tr><td colSpan="5" className="p-10 text-center text-slate-600 font-black uppercase text-xs tracking-widest italic">Sem entradas financeiras este mês</td></tr>
               ) : recentEntries.map((entry) => (
                 <tr key={entry.id} className="hover:bg-slate-800/40 transition-colors">
                   <td className="p-6 text-xs font-mono text-slate-500">
@@ -320,7 +324,7 @@ export default function DashboardHome() {
         </div>
       </div>
 
-      {/* Tabela de Ranking (Cobrança) */}
+      {/* Tabela de Ranking (Dívidas) */}
       <div className="bg-slate-900 border border-slate-800 rounded-[40px] overflow-hidden shadow-2xl">
         <div className="p-8 border-b border-slate-800 flex flex-col sm:flex-row justify-between items-center gap-4 bg-black/20">
           <h3 className="text-white font-black uppercase text-sm flex items-center gap-2 tracking-widest italic">
@@ -340,7 +344,6 @@ export default function DashboardHome() {
                 <th className="p-6 text-[10px] font-black text-slate-500 uppercase">Membro</th>
                 <th className="p-6 text-[10px] font-black text-slate-500 uppercase text-center">Mensalidades</th>
                 <th className="p-6 text-[10px] font-black text-slate-500 uppercase text-center">Acordo</th>
-                <th className="p-6 text-[10px] font-black text-slate-500 uppercase text-center">Próx. Parcela</th>
                 <th className="p-6 text-[10px] font-black text-slate-500 uppercase text-center">Retroativo</th>
                 <th className="p-6 text-[10px] font-black text-slate-500 uppercase text-right">Dívida Total</th>
                 <th className="p-6 text-[10px] font-black text-slate-500 uppercase text-center">Ações</th>
@@ -367,17 +370,6 @@ export default function DashboardHome() {
                     <span className="text-xs font-bold text-emerald-500">
                       {item.agreementInstallments > 0 ? `R$ ${item.agreementInstallments.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '—'}
                     </span>
-                  </td>
-
-                  <td className="p-6 text-center">
-                    <div className="flex flex-col items-center justify-center">
-                      {item.nextInstallment ? (
-                        <>
-                          <span className="text-xs font-black text-slate-300">{item.nextInstallment}</span>
-                          <span className="text-[8px] font-bold text-slate-600 uppercase tracking-tighter">Pendente</span>
-                        </>
-                      ) : <span className="text-slate-700">—</span>}
-                    </div>
                   </td>
 
                   <td className="p-6 text-center">
