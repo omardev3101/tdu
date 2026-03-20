@@ -38,13 +38,20 @@ export default function ExtraRecords() {
 
   useEffect(() => { loadData(); }, []);
 
-  const toggleMember = (id) => {
-    // Se o usuário começar a selecionar membros, limpamos o nome externo
-    setExternalName('');
-    setSelectedMembers(prev => 
-      prev.includes(id) ? prev.filter(mId => mId !== id) : [...prev, id]
-    );
-  };
+  // 1. Ajuste a função de seleção (Removendo o "Number" para ser compatível com qualquer ID)
+const toggleMember = (id) => {
+  // Se clicar em um membro, limpamos o campo de nome externo para não dar conflito
+  setExternalName(''); 
+  
+  setSelectedMembers(prev => {
+    const isSelected = prev.includes(id);
+    if (isSelected) {
+      return prev.filter(mId => mId !== id);
+    } else {
+      return [...prev, id];
+    }
+  });
+};
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -196,55 +203,59 @@ export default function ExtraRecords() {
             <form onSubmit={handleSubmit} className="space-y-6">
               
               {/* SEÇÃO HÍBRIDA DE IDENTIFICAÇÃO */}
-              <div className="space-y-4">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">Quem realizou?</label>
-                
-                {/* Digitar Nome (Externo) */}
-                <div className="relative">
-                  <input 
-                    type="text"
-                    placeholder="DIGITE NOME DE PESSOA DE FORA / VISITANTE"
-                    className={`w-full bg-black/40 border p-4 rounded-2xl text-white font-bold text-xs uppercase outline-none transition-all ${externalName ? 'border-emerald-500 ring-1 ring-emerald-500/20' : 'border-slate-800 focus:border-red-600'}`}
-                    value={externalName}
-                    onChange={(e) => {
-                      setExternalName(e.target.value);
-                      if(e.target.value) setSelectedMembers([]); // Desmarca membros se digitar nome
-                    }}
-                  />
-                  {externalName && <div className="absolute right-4 top-4 text-emerald-500 font-black text-[8px] uppercase">Doador Externo</div>}
-                </div>
+              // 2. No seu JSX, dentro do Modal, substitua a seção de seleção por esta:
+<div className="space-y-4">
+  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest block">
+    Quem realizou o {activeTab}?
+  </label>
+  
+  {/* CAMPO PARA QUEM É DE FORA */}
+  <input 
+    type="text"
+    placeholder="NOME DE PESSOA DE FORA (OPCIONAL)"
+    className="w-full bg-black/60 border border-slate-800 p-4 rounded-2xl text-white font-bold text-xs uppercase focus:border-red-600 outline-none transition-all"
+    value={externalName}
+    onChange={(e) => {
+      setExternalName(e.target.value);
+      if(e.target.value) setSelectedMembers([]); // Desmarca membros se digitar nome
+    }}
+  />
 
-                <div className="flex items-center gap-4 text-slate-800">
-                  <div className="h-px bg-slate-800 flex-1"></div>
-                  <span className="text-[8px] font-black uppercase">OU</span>
-                  <div className="h-px bg-slate-800 flex-1"></div>
-                </div>
+  <div className="flex items-center gap-4 text-slate-800 py-2">
+    <div className="h-px bg-slate-800 flex-1"></div>
+    <span className="text-[8px] font-black uppercase tracking-tighter">Ou selecione da casa</span>
+    <div className="h-px bg-slate-800 flex-1"></div>
+  </div>
 
-                {/* Selecionar Membros (Interno) */}
-                <div className="bg-black/20 border border-slate-800 rounded-2xl p-4">
-                  <p className="text-[9px] font-black text-slate-600 uppercase mb-3 italic">Membros do Terreiro</p>
-                  <div className="max-h-40 overflow-y-auto grid grid-cols-1 gap-2 custom-scrollbar pr-2">
-                    {members.map(m => {
-                      const isSelected = selectedMembers.includes(m.id);
-                      return (
-                        <div 
-                          key={m.id} 
-                          onClick={() => toggleMember(m.id)}
-                          className={`flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all ${
-                            isSelected ? 'bg-red-600/10 border-red-600/30 border' : 'hover:bg-slate-800/50 border border-transparent'
-                          }`}
-                        >
-                          <span className={`text-[10px] font-black uppercase ${isSelected ? 'text-white' : 'text-slate-500'}`}>
-                            {m.full_name}
-                          </span>
-                          {isSelected && <Check size={14} className="text-red-500" />}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-
+  {/* LISTA DE MEMBROS (O COMBO) */}
+  <div className="bg-black/40 border border-slate-800 rounded-2xl p-2 max-h-48 overflow-y-auto custom-scrollbar shadow-inner">
+    {members.length === 0 ? (
+      <div className="p-4 text-center text-[10px] text-slate-600 uppercase font-black italic">
+        Carregando filhos da casa...
+      </div>
+    ) : (
+      members.map(m => {
+        const isSelected = selectedMembers.includes(m.id);
+        return (
+          <div 
+            key={m.id} 
+            onClick={() => toggleMember(m.id)}
+            className={`flex items-center justify-between p-3 rounded-xl cursor-pointer mb-1 transition-all border ${
+              isSelected 
+                ? 'bg-red-600/20 border-red-600/40 shadow-[0_0_15px_rgba(220,38,38,0.1)]' 
+                : 'hover:bg-slate-800 border-transparent'
+            }`}
+          >
+            <span className={`text-[10px] font-black uppercase ${isSelected ? 'text-white' : 'text-slate-500'}`}>
+              {m.full_name}
+            </span>
+            {isSelected && <Check size={14} className="text-red-500" strokeWidth={3} />}
+          </div>
+        );
+      })
+    )}
+  </div>
+</div>
               {/* DESCRIÇÃO E VALORES */}
               <div>
                 <label className="text-[10px] font-black text-slate-500 uppercase mb-2 block tracking-widest">Descrição</label>
