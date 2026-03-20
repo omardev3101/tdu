@@ -1,8 +1,12 @@
 const { DataTypes } = require('sequelize');
-const { sequelize } = require('../config/database');
+const { sequelize: db } = require('../config/database'); 
 
-
-const ExtraRecord = sequelize.define('ExtraRecord', {
+const ExtraRecord = db.define('ExtraRecord', {
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true
+  },
   type: {
     type: DataTypes.ENUM('Doação', 'Trabalho Extra'),
     allowNull: false,
@@ -19,13 +23,15 @@ const ExtraRecord = sequelize.define('ExtraRecord', {
     type: DataTypes.DATEONLY,
     allowNull: false,
   },
-  external_donor: { // <--- ADICIONE ESTE CAMPO AQUI
+  // O CAMPO QUE VOCÊ ESTÁ ADICIONANDO:
+  external_donor: { 
     type: DataTypes.STRING,
     allowNull: true,
   }
 }, {
   tableName: 'extra_records',
-  underscored: true, // Garante o uso de created_at e updated_at
+  underscored: true, // Isso garante que o Sequelize busque created_at e updated_at
+  timestamps: true
 });
 
 module.exports = ExtraRecord;
