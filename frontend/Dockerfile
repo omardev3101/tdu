@@ -11,7 +11,7 @@ RUN npm run build
 # Estágio 2: Produção com Nginx
 FROM nginx:stable-alpine as production-stage
 # Copia o build
-COPY --from=build-stage /app/dist /usr/share/nginx/html
+COPY --from=build-stage /app/dist /usr/share/nginx/html/7caveiras
 # Copia a configuração do Nginx que acabamos de criar
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80

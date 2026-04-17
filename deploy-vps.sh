@@ -27,7 +27,7 @@ if command -v sshpass &> /dev/null; then
         
         # Build e Up
         docker-compose down
-        docker-compose build --build-arg VITE_API_URL=$API_URL
+        docker-compose build --no-cache --build-arg VITE_API_URL=$API_URL
         docker-compose up -d
         
         echo "✅ Deploy remoto concluído!"

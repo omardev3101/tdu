@@ -17,7 +17,7 @@ scp project.tar.gz "$USER@$IP`:$DEST_DIR/"
 
 # 3. Executar comandos remotos
 Write-Host "🏗️ Executando deploy remoto no Linux..." -ForegroundColor Yellow
-ssh "$USER@$IP" "cd $DEST_DIR; tar -xzf project.tar.gz; rm project.tar.gz; docker-compose down; docker-compose build --build-arg VITE_API_URL=$API_URL; docker-compose up -d"
+ssh "$USER@$IP" "cd $DEST_DIR; tar -xzf project.tar.gz; rm project.tar.gz; docker-compose down; docker-compose build --no-cache --build-arg VITE_API_URL=$API_URL; docker-compose up -d"
 
 Write-Host "--------------------------------------------------------" -ForegroundColor Green
 Write-Host "✅ DEPLOY CONCLUÍDO COM SUCESSO!" -ForegroundColor Green
