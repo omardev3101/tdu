@@ -5,7 +5,7 @@ services:
       dockerfile: Dockerfile
     container_name: tdu_backend
     ports:
-      - "3000:3000"
+      - "3005:3000" # Usando 3005 para evitar conflito na 3000
     env_file:
       - ./backend/.env
     restart: always
@@ -22,7 +22,7 @@ services:
         - VITE_API_URL=http://localhost:3000
     container_name: tdu_frontend
     ports:
-      - "5173:80" # Nginx roda na 80 interna, expomos na 5173
+      - "5180:80" # Usando 5180 para evitar conflitos
     restart: always
     depends_on:
       - backend
