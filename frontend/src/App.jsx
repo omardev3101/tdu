@@ -22,7 +22,7 @@ const PrivateRoute = ({ children }) => {
 
 function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={import.meta.env.BASE_URL}>
       <Routes>
         {/* --- ROTAS PÚBLICAS --- */}
         <Route path="/" element={<Login />} />

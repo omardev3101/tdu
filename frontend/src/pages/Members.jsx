@@ -64,11 +64,11 @@ export default function Members() {
     // 1. Se já for um link externo completo, apenas retorna
     if (photo_url.startsWith('http')) return photo_url;
 
-    // 2. Limpa a URL base: remove localhost e remove barra no final
-    const base = 'https://tdu-api.onrender.com';
+    // 2. Monta o link garantindo que só exista UMA barra entre o domínio e o uploads (Limpando o API_URL)
+    const cleanBaseUrl = API_URL.replace(/\/$/, '');
     
-    // 3. Monta o link garantindo que só exista UMA barra entre o domínio e o uploads
-    return `${base}/uploads/${photo_url}`;
+    // 3. Monta o link
+    return `${cleanBaseUrl}/uploads/${photo_url}`;
   };
 
   return (
