@@ -79,14 +79,21 @@ const FormSolicitacao = () => {
   };
 
 const ligarCamera = async () => {
+  // 1. Verificação de Contexto Seguro (HTTPS)
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    alert("❌ Erro: Seu navegador não suporta acesso à câmera ou a conexão não é segura (HTTPS). Certifique-se de estar usando HTTPS.");
+    return;
+  }
+
   setFotoCapturada(null);
   setCameraAtiva(true);
   
+  // 2. Constraints mais flexíveis para Mobile
   const constraints = {
     video: { 
-      facingMode: "user",
-      width: { ideal: 640 },
-      height: { ideal: 480 }
+      facingMode: { ideal: "user" }, // 'ideal' é mais compatível que valor fixo
+      width: { ideal: 1280 },
+      height: { ideal: 720 }
     },
     audio: false
   };
@@ -94,25 +101,30 @@ const ligarCamera = async () => {
   try {
     const stream = await navigator.mediaDevices.getUserMedia(constraints);
     
-    // Aguardamos o React renderizar o elemento <video> antes de vincular o stream
-    setTimeout(() => {
+    // 3. Tentar vincular o stream ao vídeo (com retry se o React ainda não renderizou o elemento)
+    let attempts = 0;
+    const attachStream = () => {
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        
-        // O segredo: tentar dar play várias vezes caso o navegador tente pausar
-        const playVideo = () => {
-          videoRef.current.play().catch(err => {
-            console.log("Tentando play novamente...");
-            setTimeout(playVideo, 500);
-          });
-        };
-        playVideo();
+        videoRef.current.play().catch(e => console.log("Aguardando interação para play..."));
+      } else if (attempts < 10) {
+        attempts++;
+        setTimeout(attachStream, 200);
+      } else {
+        console.error("Não foi possível encontrar o elemento de vídeo.");
       }
-    }, 500);
+    };
+
+    // Pequena pausa para garantir que o state 'cameraAtiva' renderizou o <video>
+    setTimeout(attachStream, 100);
     
   } catch (err) {
     console.error("Erro fatal na câmera:", err);
-    alert("Erro: " + err.message + ". Verifique se o site tem permissão de câmera no seu navegador.");
+    let msg = "Erro ao acessar a câmera.";
+    if (err.name === 'NotAllowedError') msg = "Permissão negada. Ative a câmera nas configurações do navegador.";
+    if (err.name === 'NotFoundError') msg = "Nenhuma câmera frontal encontrada.";
+    
+    alert(`⚠️ ${msg}\n(${err.message})`);
     setCameraAtiva(false);
   }
 };
@@ -299,6 +311,7 @@ const handleSubmit = async (e) => {
         <input 
           type="file" 
           accept="image/*" 
+          capture="user"
           className="absolute inset-0 opacity-0 cursor-pointer" 
           onChange={(e) => {
             const file = e.target.files[0];

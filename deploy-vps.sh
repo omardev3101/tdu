@@ -13,10 +13,9 @@ echo "🚀 Iniciando Deploy para VPS - TDU 7 Caveiras"
 echo "📦 Compactando arquivos para transferência..."
 tar -czf project.tar.gz --exclude='node_modules' --exclude='.git' --exclude='project.tar.gz' .
 
-# 2. Transferir para o VPS (usando sshpass para automação com senha)
-# Se não tiver 'sshpass' instalado localmente, você pode fazer manualmente.
+# 2. Transferir e Executar
 if command -v sshpass &> /dev/null; then
-    echo "📡 Transferindo arquivos para $IP..."
+    echo "📡 Transferindo arquivos para $IP (usando sshpass)..."
     sshpass -p "$PASS" scp project.tar.gz $USER@$IP:$DEST_DIR/
     
     echo "🏗️  Executando deploy remoto..."
@@ -33,7 +32,11 @@ if command -v sshpass &> /dev/null; then
         echo "✅ Deploy remoto concluído!"
 EOF
 else
-    echo "⚠️ 'sshpass' não encontrado. Por favor, transfira o arquivo 'project.tar.gz' manualmente para $DEST_DIR no VPS e execute o docker-compose lá."
+    echo "📡 Transferindo arquivos para $IP (digite a senha se solicitado)..."
+    scp project.tar.gz $USER@$IP:$DEST_DIR/
+    
+    echo "🏗️  Executando deploy remoto (digite a senha se solicitado)..."
+    ssh $USER@$IP "cd $DEST_DIR && tar -xzf project.tar.gz && rm project.tar.gz && docker-compose down && docker-compose build --no-cache --build-arg VITE_API_URL=$API_URL && docker-compose up -d"
 fi
 
 echo "--------------------------------------------------------"
