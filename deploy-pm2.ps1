@@ -2,6 +2,7 @@
 $USER = "root"
 $IP = "187.45.255.59"
 $DEST_DIR = "/var/www/7caveiras"
+$DOMAIN = "pessistemas.vps-kinghost.net"
 
 Write-Host "🚀 Iniciando Deploy via PM2 para VPS - TDU 7 Caveiras" -ForegroundColor Cyan
 
@@ -21,5 +22,5 @@ C:\Windows\System32\OpenSSH\ssh.exe "$USER@$IP" "chmod +x $DEST_DIR/update-pm2.s
 
 Write-Host "--------------------------------------------------------" -ForegroundColor Green
 Write-Host "✅ PROCESSO DE DEPLOY FINALIZADO!" -ForegroundColor Green
-Write-Host "🌐 Verifique em: http://$IP/7caveiras/" -ForegroundColor Green
+Write-Host "🌐 Verifique em: https://$DOMAIN/7caveiras/" -ForegroundColor Green
 Write-Host "--------------------------------------------------------"

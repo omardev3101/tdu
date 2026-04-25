@@ -1,10 +1,10 @@
 import axios from 'axios';
 
 const api = axios.create({
-  // 1. Tenta pegar a URL do .env (VITE_API_URL)
-  // 2. Se não existir, usa a URL fixa do seu Backend no Render
-  // 3. O .replace garante que não existam barras duplas (//) no caminho
-  baseURL: (import.meta.env.VITE_API_URL || 'https://tdu-api.onrender.com').replace(/\/$/, ''),
+  // Se houver VITE_API_URL no .env, usa ela. 
+  // Caso contrário: se for DEV usa localhost:3000, se for PROD usa o subcaminho do VPS.
+  baseURL: (import.meta.env.VITE_API_URL || 
+           (import.meta.env.DEV ? 'http://localhost:3000' : '/7caveiras/api')).replace(/\/$/, ''),
 });
 
 // Interceptor para injetar o token automaticamente em todas as requisições
